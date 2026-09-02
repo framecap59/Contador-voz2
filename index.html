@@ -144,7 +144,7 @@
   <button id="camBtn">Cámara</button>
   <button id="switchCamBtn">Cambiar cámara</button>
   <button id="reset">Reiniciar</button>
-  <button id="calibrateBtn">Calibrar centro</button>
+  <button id="calibrateBtn">Calibrar zona</button>
 </div>
 
 <div id="heard">Lo que escucho aparecerá acá…</div>
@@ -152,12 +152,12 @@
 <div class="cam-container" id="camContainer">
   <video id="video" playsinline muted autoplay></video>
   <canvas id="overlay"></canvas>
-  <div id="camInfo">Apuntá la cámara delantera a la tuerca plateada</div>
+  <div id="camInfo">Apuntá la cámara delantera hacia donde aparece la tuerca</div>
 </div>
 
 <p class="hint" id="hint">
-  Celular boca arriba → usa la cámara delantera.<br>
-  Apuntá hacia la tuerca (flecha verde). Tocá el centro del disco rojo para calibrar.
+  Celular boca arriba. Tocá en la imagen el lugar donde se ve la tuerca cuando está abajo.<br>
+  Cada vez que la tuerca aparece = 1 vuelta.
 </p>
 
 <script>
@@ -176,18 +176,19 @@ let overlay = null;
 let ctx = null;
 let animId = null;
 
-// Calibración
-let centerX = null;
-let centerY = null;
-let radius = 80;
+// Calibración / zona de detección
+let zoneX = null;
+let zoneY = null;
+let zoneRadius = 70;
 let calibrated = false;
 
-// Tracking del ángulo
-let lastAngle = null;
-let accumulatedAngle = 0;
-let lastDetectedTime = 0;
-const MIN_ANGLE_DELTA = 25;
-const FULL_TURN = 360;
+// Detección por aparición / desaparición
+let isNutVisible = false;
+let lastSeenTime = 0;
+let lastCountTime = 0;
+const MIN_VISIBLE_MS = 120;
+const COUNT_COOLDOWN_MS = 400;
+const BRIGHTNESS_THRESHOLD = 145;
 
 /* =========================================================
    NÚMEROS DEL 0 AL 800
@@ -293,8 +294,9 @@ function incrementCount() {
 function resetCount() {
   count = 0;
   document.getElementById("count").textContent = "0";
-  accumulatedAngle = 0;
-  lastAngle = null;
+  isNutVisible = false;
+  lastCountTime = 0;
+  lastSeenTime = 0;
 }
 
 /* =========================================================
@@ -342,7 +344,7 @@ function initVoice() {
 }
 
 /* =========================================================
-   CÁMARA + DETECCIÓN DEL TORNILLO
+   CÁMARA + DETECCIÓN POR APARICIÓN
 ========================================================= */
 async function toggleCamera() {
   if (camActive) {
@@ -352,7 +354,7 @@ async function toggleCamera() {
   }
 }
 
-let currentFacingMode = "user"; // por defecto delantera
+let currentFacingMode = "user";
 
 async function startCamera(facing = currentFacingMode) {
   if (stream) {
@@ -401,10 +403,11 @@ async function startCamera(facing = currentFacingMode) {
     updateStatus();
     updateModeBadge();
 
-    lastAngle = null;
-    accumulatedAngle = 0;
+    isNutVisible = false;
+    lastCountTime = 0;
+    lastSeenTime = 0;
     calibrated = false;
-    centerX = centerY = null;
+    zoneX = zoneY = null;
     processFrame();
 
     const camName = facing === "user" ? "DELANTERA" : "TRASERA";
@@ -427,7 +430,8 @@ function stopCamera() {
   document.getElementById("calibrateBtn").style.display = "none";
   document.getElementById("switchCamBtn").style.display = "none";
   calibrated = false;
-  centerX = centerY = null;
+  zoneX = zoneY = null;
+  isNutVisible = false;
   updateStatus();
   updateModeBadge();
 }
@@ -437,76 +441,66 @@ function processFrame() {
 
   const w = overlay.width;
   const h = overlay.height;
+  const now = performance.now();
 
   ctx.clearRect(0, 0, w, h);
 
-  if (calibrated && centerX !== null) {
+  if (calibrated && zoneX !== null) {
+    // Dibujar zona de detección
     ctx.beginPath();
-    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-    ctx.strokeStyle = "rgba(34, 197, 94, 0.7)";
-    ctx.lineWidth = 2;
+    ctx.arc(zoneX, zoneY, zoneRadius, 0, Math.PI * 2);
+    ctx.strokeStyle = isNutVisible ? "rgba(34, 197, 94, 0.9)" : "rgba(239, 68, 68, 0.7)";
+    ctx.lineWidth = 3;
     ctx.stroke();
 
     ctx.beginPath();
-    ctx.arc(centerX, centerY, 5, 0, Math.PI * 2);
-    ctx.fillStyle = "#22c55e";
+    ctx.arc(zoneX, zoneY, 4, 0, Math.PI * 2);
+    ctx.fillStyle = isNutVisible ? "#22c55e" : "#ef4444";
     ctx.fill();
 
-    const bright = findBrightestPoint(centerX, centerY, radius);
+    const bright = findBrightestInZone(zoneX, zoneY, zoneRadius);
+    const currentlyVisible = bright !== null;
 
-    if (bright) {
+    if (currentlyVisible) {
       ctx.beginPath();
-      ctx.arc(bright.x, bright.y, 8, 0, Math.PI * 2);
+      ctx.arc(bright.x, bright.y, 9, 0, Math.PI * 2);
       ctx.fillStyle = "#f59e0b";
       ctx.fill();
       ctx.strokeStyle = "#fff";
       ctx.lineWidth = 2;
       ctx.stroke();
+    }
 
-      ctx.beginPath();
-      ctx.moveTo(centerX, centerY);
-      ctx.lineTo(bright.x, bright.y);
-      ctx.strokeStyle = "rgba(245, 158, 11, 0.8)";
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      const angle = Math.atan2(bright.y - centerY, bright.x - centerX) * (180 / Math.PI);
-      let ang = (angle + 360) % 360;
-
-      document.getElementById("camInfo").textContent =
-        `Ángulo: ${ang.toFixed(0)}°  |  Vueltas: ${count}`;
-
-      if (lastAngle !== null) {
-        let delta = ang - lastAngle;
-
-        if (delta > 180) delta -= 360;
-        if (delta < -180) delta += 360;
-
-        if (Math.abs(delta) > 3) {
-          accumulatedAngle += delta;
-
-          if (Math.abs(accumulatedAngle) >= FULL_TURN) {
-            const turns = Math.floor(Math.abs(accumulatedAngle) / FULL_TURN);
-            for (let t = 0; t < turns; t++) {
-              incrementCount();
-            }
-            accumulatedAngle = accumulatedAngle % FULL_TURN;
-            document.getElementById("camInfo").textContent += "  ✓ Vuelta!";
-          }
+    // Contamos 1 vuelta cada vez que la tuerca PASA de no-visible → visible
+    if (currentlyVisible) {
+      if (!isNutVisible) {
+        if (now - lastCountTime > COUNT_COOLDOWN_MS) {
+          incrementCount();
+          lastCountTime = now;
+          document.getElementById("camInfo").textContent = `✓ VUELTA DETECTADA  |  Total: ${count}`;
+        }
+      } else {
+        if (now - lastCountTime > 400) {
+          document.getElementById("camInfo").textContent = `Tuerca VISIBLE  |  Vueltas: ${count}`;
         }
       }
-      lastAngle = ang;
+      isNutVisible = true;
+      lastSeenTime = now;
     } else {
-      document.getElementById("camInfo").textContent = "No veo el tornillo… iluminá mejor o recalibrá";
+      if (now - lastSeenTime > 180) {
+        isNutVisible = false;
+        document.getElementById("camInfo").textContent = `Esperando tuerca...  |  Vueltas: ${count}`;
+      }
     }
+
   } else {
-    document.getElementById("camInfo").textContent = "Tocá el centro del disco rojo para calibrar";
+    document.getElementById("camInfo").textContent = "Tocá donde aparece la tuerca (abajo) para calibrar la zona";
   }
 
   animId = requestAnimationFrame(processFrame);
 }
 
-function findBrightestPoint(cx, cy, r) {
+function findBrightestInZone(cx, cy, r) {
   const tempCanvas = document.createElement("canvas");
   tempCanvas.width = overlay.width;
   tempCanvas.height = overlay.height;
@@ -530,9 +524,9 @@ function findBrightestPoint(cx, cy, r) {
       if (dx*dx + dy*dy > r2) continue;
 
       const idx = (Math.floor(y) * tempCanvas.width + Math.floor(x)) * 4;
-      const bright = data[idx] * 0.3 + data[idx+1] * 0.6 + data[idx+2] * 0.1;
+      const bright = data[idx] * 0.299 + data[idx+1] * 0.587 + data[idx+2] * 0.114;
 
-      if (bright > maxBright && bright > 140) {
+      if (bright > maxBright && bright > BRIGHTNESS_THRESHOLD) {
         maxBright = bright;
         bestX = x;
         bestY = y;
@@ -556,16 +550,17 @@ function setupCalibration() {
     const clickX = (e.clientX - rect.left) * scaleX;
     const clickY = (e.clientY - rect.top) * scaleY;
 
-    centerX = clickX;
-    centerY = clickY;
+    zoneX = clickX;
+    zoneY = clickY;
     calibrated = true;
-    lastAngle = null;
-    accumulatedAngle = 0;
+    isNutVisible = false;
+    lastCountTime = 0;
+    lastSeenTime = 0;
 
-    radius = Math.min(overlay.width, overlay.height) * 0.28;
+    zoneRadius = Math.min(overlay.width, overlay.height) * 0.18;
 
-    document.getElementById("camInfo").textContent = "Calibrado ✓  —  Girando el eje...";
-    document.getElementById("status").textContent = "Cámara calibrada. Empezá a bobinar.";
+    document.getElementById("camInfo").textContent = "Zona calibrada ✓  —  Esperando que aparezca la tuerca...";
+    document.getElementById("status").textContent = "Listo. Cada vez que la tuerca aparezca se suma 1 vuelta.";
   });
 }
 
@@ -613,8 +608,8 @@ document.getElementById("switchCamBtn").onclick = () => {
 };
 
 document.getElementById("calibrateBtn").onclick = () => {
-  document.getElementById("camInfo").textContent = "Tocá el CENTRO del disco rojo ahora";
-  document.getElementById("status").textContent = "Tocá el centro del disco en la imagen";
+  document.getElementById("camInfo").textContent = "Tocá donde APARECE la tuerca (normalmente abajo)";
+  document.getElementById("status").textContent = "Tocá la zona donde se ve la tuerca cuando baja";
 };
 
 /* =========================================================
