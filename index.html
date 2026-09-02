@@ -1,9 +1,16 @@
-    <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>Contador Bobinado + Cámara</title>
+<meta name="theme-color" content="#000000">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Contador Bobinado">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Contador Bobinado</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -43,21 +50,184 @@
     margin-bottom: 14px;
   }
 
-  button {
-    border: 0;
-    border-radius: 14px;
-    padding: 14px 18px;
-    font-size: 16px;
-    font-weight: 700;
-    cursor: pointer;
-    min-width: 110px;
+  /* ===== TEMAS DE COLOR ===== */
+  :root {
+    --btn-bg: #1a1a1a;
+    --btn-border: #333;
+    --btn-text: #e5e5e5;
+    --btn-accent: #22c55e;
+    --btn-accent-text: #000;
   }
 
-  #start { background: #22c55e; color: #000; }
-  #reset { background: #333; color: #fff; }
-  #camBtn { background: #3b82f6; color: #fff; }
-  #switchCamBtn { background: #8b5cf6; color: #fff; display: none; }
-  #calibrateBtn { background: #f59e0b; color: #000; display: none; }
+  body.theme-green {
+    --btn-bg: #0f1f14;
+    --btn-border: #166534;
+    --btn-text: #bbf7d0;
+    --btn-accent: #22c55e;
+    --btn-accent-text: #000;
+  }
+  body.theme-gray {
+    --btn-bg: #1a1a1a;
+    --btn-border: #404040;
+    --btn-text: #e5e5e5;
+    --btn-accent: #a3a3a3;
+    --btn-accent-text: #000;
+  }
+  body.theme-blue {
+    --btn-bg: #0f172a;
+    --btn-border: #1e3a5f;
+    --btn-text: #bfdbfe;
+    --btn-accent: #3b82f6;
+    --btn-accent-text: #fff;
+  }
+  body.theme-red {
+    --btn-bg: #1c1010;
+    --btn-border: #7f1d1d;
+    --btn-text: #fecaca;
+    --btn-accent: #ef4444;
+    --btn-accent-text: #fff;
+  }
+
+  button {
+    border: 1.5px solid var(--btn-border);
+    border-radius: 12px;
+    padding: 13px 16px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    min-width: 100px;
+    background: var(--btn-bg);
+    color: var(--btn-text);
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+
+  button:active {
+    transform: scale(0.96);
+  }
+
+  /* Botones de acción principal usan el acento */
+  #start, #plusBtn, .btn-load {
+    background: var(--btn-accent);
+    border-color: var(--btn-accent);
+    color: var(--btn-accent-text);
+  }
+
+  #minusBtn {
+    background: var(--btn-bg);
+    border-color: var(--btn-border);
+    color: var(--btn-text);
+  }
+
+  #plusBtn, #minusBtn {
+    min-width: 56px;
+    font-size: 22px;
+    padding: 12px 14px;
+  }
+
+  #saveBtn, #themeBtn {
+    min-width: 46px;
+    padding: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #saveBtn svg, #themeBtn svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  #switchCamBtn, #calibrateBtn {
+    display: none;
+  }
+
+  /* Modal historial */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 16px;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal {
+    background: #111;
+    border: 1px solid #333;
+    border-radius: 16px;
+    width: min(94vw, 380px);
+    max-height: 80vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .modal-header {
+    padding: 14px 16px;
+    border-bottom: 1px solid #333;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 700;
+  }
+  .modal-close {
+    background: transparent;
+    color: #888;
+    min-width: auto;
+    padding: 4px 10px;
+    font-size: 20px;
+  }
+  .modal-body {
+    padding: 12px;
+    overflow-y: auto;
+    flex: 1;
+  }
+  .save-item {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+  }
+  .save-item-info { flex: 1; }
+  .save-item-date { font-size: 13px; color: #94a3b8; }
+  .save-item-count { font-size: 20px; font-weight: 700; color: #fff; }
+  .save-item-actions { display: flex; gap: 6px; }
+  .save-item-actions button {
+    min-width: auto;
+    padding: 8px 12px;
+    font-size: 13px;
+    border-radius: 8px;
+  }
+  .btn-load { background: #3b82f6; color: #fff; }
+  .btn-delete { background: #333; color: #f87171; }
+  .empty-history {
+    text-align: center;
+    color: #666;
+    padding: 30px 10px;
+    font-size: 14px;
+  }
+  .save-toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #22c55e;
+    color: #000;
+    padding: 10px 20px;
+    border-radius: 30px;
+    font-weight: 700;
+    font-size: 14px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    z-index: 200;
+    pointer-events: none;
+  }
+  .save-toast.show { opacity: 1; }
 
   #heard {
     width: min(90vw, 400px);
@@ -74,7 +244,7 @@
   /* Cámara */
   .cam-container {
     position: relative;
-    width: min(70vw, 280px);
+    width: min(70vw, 280px);   /* más chico para que se vea mejor el número */
     aspect-ratio: 4/3;
     background: #111;
     border-radius: 14px;
@@ -90,6 +260,7 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
+    /* Sin espejo: la cámara delantera apunta de costado al bobinador */
   }
 
   #overlay {
@@ -140,12 +311,42 @@
 <div id="status">Listo</div>
 
 <div class="buttons">
+  <button id="minusBtn">−</button>
+  <button id="plusBtn">+</button>
+  <button id="saveBtn" title="Guardar / Historial">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+      <polyline points="17 21 17 13 7 13 7 21"/>
+      <polyline points="7 3 7 8 15 8"/>
+    </svg>
+  </button>
+  <button id="themeBtn" title="Cambiar color">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="5"/>
+      <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+    </svg>
+  </button>
   <button id="start">Empezar Voz</button>
   <button id="camBtn">Cámara</button>
   <button id="switchCamBtn">Cambiar cámara</button>
   <button id="reset">Reiniciar</button>
   <button id="calibrateBtn">Calibrar zona</button>
 </div>
+
+<!-- Modal Historial -->
+<div class="modal-overlay" id="historyModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span>Historial de vueltas</span>
+      <button class="modal-close" id="closeModal">×</button>
+    </div>
+    <div class="modal-body" id="historyList">
+      <!-- se llena por JS -->
+    </div>
+  </div>
+</div>
+
+<div class="save-toast" id="saveToast">Guardado ✓</div>
 
 <div id="heard">Lo que escucho aparecerá acá…</div>
 
@@ -177,21 +378,21 @@ let ctx = null;
 let animId = null;
 
 // Calibración / zona de detección
-let zoneX = null;
+let zoneX = null;      // centro de la zona donde aparece la tuerca
 let zoneY = null;
-let zoneRadius = 70;
+let zoneRadius = 70;   // radio de la zona de detección
 let calibrated = false;
 
 // Detección por aparición / desaparición
-let isNutVisible = false;
-let lastSeenTime = 0;
-let lastCountTime = 0;
-const MIN_VISIBLE_MS = 120;
-const COUNT_COOLDOWN_MS = 400;
-const BRIGHTNESS_THRESHOLD = 145;
+let isNutVisible = false;          // estado actual
+let lastSeenTime = 0;              // última vez que se vio
+let lastCountTime = 0;             // para evitar conteos dobles
+const MIN_VISIBLE_MS = 120;        // tiene que estar visible al menos este tiempo
+const COUNT_COOLDOWN_MS = 400;     // tiempo mínimo entre vueltas contadas
+const BRIGHTNESS_THRESHOLD = 145;  // umbral de brillo del metal
 
 /* =========================================================
-   NÚMEROS DEL 0 AL 800
+   NÚMEROS DEL 0 AL 800 (igual que tu versión original)
 ========================================================= */
 const unidades = ["cero","uno","dos","tres","cuatro","cinco","seis","siete","ocho","nueve"];
 const especiales = {10:"diez",11:"once",12:"doce",13:"trece",14:"catorce",15:"quince",16:"dieciseis",17:"diecisiete",18:"dieciocho",19:"diecinueve"};
@@ -236,7 +437,7 @@ for (const word of Object.keys(numberWords)) {
 }
 
 /* =========================================================
-   PROCESAR VOZ
+   PROCESAR VOZ (mejorado: ahora también responde a comandos de cámara)
 ========================================================= */
 function process(text) {
   const clean = normal(text);
@@ -248,6 +449,7 @@ function process(text) {
   while (i < words.length) {
     let found = null;
 
+    // Comandos especiales
     if (words[i] === "camara" || words[i] === "cámara") {
       toggleCamera();
       i++;
@@ -259,10 +461,12 @@ function process(text) {
       continue;
     }
 
+    // Palabras para contar una vuelta
     if (words[i] === "siguiente" || words[i] === "vuelta" || words[i] === "una") {
       found = { length: 1 };
     }
 
+    // Buscar números
     if (!found) {
       for (let length = 5; length >= 1; length--) {
         if (i + length > words.length) continue;
@@ -286,6 +490,7 @@ function process(text) {
 function incrementCount() {
   count++;
   document.getElementById("count").textContent = count;
+  // Feedback visual rápido
   const el = document.getElementById("count");
   el.style.transform = "scale(1.08)";
   setTimeout(() => el.style.transform = "scale(1)", 80);
@@ -344,7 +549,7 @@ function initVoice() {
 }
 
 /* =========================================================
-   CÁMARA + DETECCIÓN POR APARICIÓN
+   CÁMARA + DETECCIÓN DEL TORNILLO
 ========================================================= */
 async function toggleCamera() {
   if (camActive) {
@@ -354,15 +559,17 @@ async function toggleCamera() {
   }
 }
 
-let currentFacingMode = "user";
+let currentFacingMode = "user"; // por defecto delantera
 
 async function startCamera(facing = currentFacingMode) {
+  // Si ya hay stream, lo cerramos primero
   if (stream) {
     stream.getTracks().forEach(t => t.stop());
     stream = null;
   }
 
   try {
+    // Intentamos primero con exact (más forzoso)
     let constraints = {
       video: {
         facingMode: { exact: facing },
@@ -375,6 +582,7 @@ async function startCamera(facing = currentFacingMode) {
     try {
       stream = await navigator.mediaDevices.getUserMedia(constraints);
     } catch (e) {
+      // Si falla exact, probamos con ideal
       console.warn("Exact falló, probando ideal...", e);
       constraints.video.facingMode = { ideal: facing };
       stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -389,6 +597,7 @@ async function startCamera(facing = currentFacingMode) {
     video.srcObject = stream;
     await video.play();
 
+    // Ajustar canvas al tamaño real del video
     const resize = () => {
       overlay.width = video.videoWidth || 640;
       overlay.height = video.videoHeight || 480;
@@ -403,6 +612,7 @@ async function startCamera(facing = currentFacingMode) {
     updateStatus();
     updateModeBadge();
 
+    // Empezar loop de análisis
     isNutVisible = false;
     lastCountTime = 0;
     lastSeenTime = 0;
@@ -410,6 +620,7 @@ async function startCamera(facing = currentFacingMode) {
     zoneX = zoneY = null;
     processFrame();
 
+    // Mostrar qué cámara se abrió
     const camName = facing === "user" ? "DELANTERA" : "TRASERA";
     document.getElementById("status").textContent = "Cámara " + camName + " activa";
 
@@ -453,15 +664,18 @@ function processFrame() {
     ctx.lineWidth = 3;
     ctx.stroke();
 
+    // Centro de la zona
     ctx.beginPath();
     ctx.arc(zoneX, zoneY, 4, 0, Math.PI * 2);
     ctx.fillStyle = isNutVisible ? "#22c55e" : "#ef4444";
     ctx.fill();
 
+    // ¿Hay un punto brillante dentro de la zona?
     const bright = findBrightestInZone(zoneX, zoneY, zoneRadius);
     const currentlyVisible = bright !== null;
 
     if (currentlyVisible) {
+      // Dibujar el punto detectado
       ctx.beginPath();
       ctx.arc(bright.x, bright.y, 9, 0, Math.PI * 2);
       ctx.fillStyle = "#f59e0b";
@@ -471,9 +685,11 @@ function processFrame() {
       ctx.stroke();
     }
 
+    // ===== Lógica de aparición / desaparición =====
     // Contamos 1 vuelta cada vez que la tuerca PASA de no-visible → visible
     if (currentlyVisible) {
       if (!isNutVisible) {
+        // Acaba de aparecer
         if (now - lastCountTime > COUNT_COOLDOWN_MS) {
           incrementCount();
           lastCountTime = now;
@@ -487,6 +703,7 @@ function processFrame() {
       isNutVisible = true;
       lastSeenTime = now;
     } else {
+      // Desapareció
       if (now - lastSeenTime > 180) {
         isNutVisible = false;
         document.getElementById("camInfo").textContent = `Esperando tuerca...  |  Vueltas: ${count}`;
@@ -500,6 +717,7 @@ function processFrame() {
   animId = requestAnimationFrame(processFrame);
 }
 
+// Busca el punto más brillante DENTRO de la zona
 function findBrightestInZone(cx, cy, r) {
   const tempCanvas = document.createElement("canvas");
   tempCanvas.width = overlay.width;
@@ -538,6 +756,7 @@ function findBrightestInZone(cx, cy, r) {
   return { x: bestX, y: bestY, bright: maxBright };
 }
 
+// Calibración: el usuario toca el centro del disco
 function setupCalibration() {
   const container = document.getElementById("camContainer");
   container.addEventListener("click", (e) => {
@@ -547,6 +766,7 @@ function setupCalibration() {
     const scaleX = overlay.width / rect.width;
     const scaleY = overlay.height / rect.height;
 
+    // Coordenadas directas (cámara delantera sin espejo)
     const clickX = (e.clientX - rect.left) * scaleX;
     const clickY = (e.clientY - rect.top) * scaleY;
 
@@ -557,6 +777,7 @@ function setupCalibration() {
     lastCountTime = 0;
     lastSeenTime = 0;
 
+    // Radio de la zona de detección (ajustable)
     zoneRadius = Math.min(overlay.width, overlay.height) * 0.18;
 
     document.getElementById("camInfo").textContent = "Zona calibrada ✓  —  Esperando que aparezca la tuerca...";
@@ -582,6 +803,123 @@ function updateModeBadge() {
   else if (camActive) txt += "Cámara";
   else txt += "Inactivo";
   document.getElementById("modeBadge").textContent = txt;
+}
+
+/* =========================================================
+   HISTORIAL / GUARDADO (localStorage)
+========================================================= */
+const STORAGE_KEY = "bobinado_historial";
+
+function getHistory() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveHistory(list) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+}
+
+function formatDate(d = new Date()) {
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+  const hours = String(d.getHours()).padStart(2, "0");
+  const mins = String(d.getMinutes()).padStart(2, "0");
+  return {
+    short: `${day}/${month}`,
+    full: `${day}/${month}/${year} ${hours}:${mins}`,
+    iso: d.toISOString()
+  };
+}
+
+function saveCurrentCount() {
+  if (count === 0) {
+    showToast("No hay vueltas para guardar");
+    return;
+  }
+
+  const list = getHistory();
+  const fecha = formatDate();
+
+  list.unshift({
+    id: Date.now(),
+    count: count,
+    dateShort: fecha.short,
+    dateFull: fecha.full,
+    timestamp: fecha.iso
+  });
+
+  // Máximo 50 guardados
+  if (list.length > 50) list.length = 50;
+
+  saveHistory(list);
+  showToast(`Guardado: ${count} vueltas (${fecha.short})`);
+  renderHistory();
+}
+
+function loadSave(id) {
+  const list = getHistory();
+  const item = list.find(x => x.id === id);
+  if (!item) return;
+
+  count = item.count;
+  document.getElementById("count").textContent = count;
+  isNutVisible = false;
+  lastCountTime = 0;
+  lastSeenTime = 0;
+
+  closeHistoryModal();
+  showToast(`Cargado: ${item.count} vueltas del ${item.dateShort}`);
+}
+
+function deleteSave(id) {
+  let list = getHistory();
+  list = list.filter(x => x.id !== id);
+  saveHistory(list);
+  renderHistory();
+}
+
+function renderHistory() {
+  const list = getHistory();
+  const container = document.getElementById("historyList");
+
+  if (list.length === 0) {
+    container.innerHTML = `<div class="empty-history">Todavía no hay guardados.<br>Tocá el icono de guardar para crear uno.</div>`;
+    return;
+  }
+
+  container.innerHTML = list.map(item => `
+    <div class="save-item">
+      <div class="save-item-info">
+        <div class="save-item-date">Vueltas del ${item.dateShort}</div>
+        <div class="save-item-count">${item.count}</div>
+        <div class="save-item-date" style="font-size:11px;margin-top:2px">${item.dateFull}</div>
+      </div>
+      <div class="save-item-actions">
+        <button class="btn-load" onclick="loadSave(${item.id})">Cargar</button>
+        <button class="btn-delete" onclick="deleteSave(${item.id})">×</button>
+      </div>
+    </div>
+  `).join("");
+}
+
+function openHistoryModal() {
+  renderHistory();
+  document.getElementById("historyModal").classList.add("active");
+}
+
+function closeHistoryModal() {
+  document.getElementById("historyModal").classList.remove("active");
+}
+
+function showToast(msg) {
+  const toast = document.getElementById("saveToast");
+  toast.textContent = msg;
+  toast.classList.add("show");
+  setTimeout(() => toast.classList.remove("show"), 2200);
 }
 
 /* =========================================================
@@ -612,12 +950,78 @@ document.getElementById("calibrateBtn").onclick = () => {
   document.getElementById("status").textContent = "Tocá la zona donde se ve la tuerca cuando baja";
 };
 
+// + y -
+document.getElementById("plusBtn").onclick = () => {
+  incrementCount();
+};
+
+document.getElementById("minusBtn").onclick = () => {
+  if (count > 0) {
+    count--;
+    document.getElementById("count").textContent = count;
+  }
+};
+
+// Guardar / Historial
+document.getElementById("saveBtn").onclick = () => {
+  openHistoryModal();
+};
+
+document.getElementById("closeModal").onclick = closeHistoryModal;
+
+document.getElementById("historyModal").onclick = (e) => {
+  if (e.target.id === "historyModal") closeHistoryModal();
+};
+
+// Botón "Guardar actual" dentro del modal
+(function addSaveInModal() {
+  const header = document.querySelector(".modal-header");
+  const btn = document.createElement("button");
+  btn.textContent = "Guardar actual";
+  btn.style.cssText = "min-width:auto;padding:8px 12px;font-size:13px;border-radius:8px;margin-right:8px;";
+  btn.onclick = () => saveCurrentCount();
+  header.insertBefore(btn, header.lastElementChild);
+})();
+
+/* =========================================================
+   CAMBIAR TEMA DE COLOR
+========================================================= */
+const THEMES = ["theme-green", "theme-gray", "theme-blue", "theme-red"];
+let currentThemeIndex = 0;
+
+function applyTheme(themeClass) {
+  document.body.classList.remove(...THEMES);
+  document.body.classList.add(themeClass);
+  localStorage.setItem("bobinado_theme", themeClass);
+}
+
+document.getElementById("themeBtn").onclick = () => {
+  currentThemeIndex = (currentThemeIndex + 1) % THEMES.length;
+  applyTheme(THEMES[currentThemeIndex]);
+};
+
+// Cargar tema guardado
+(function loadSavedTheme() {
+  const saved = localStorage.getItem("bobinado_theme");
+  if (saved && THEMES.includes(saved)) {
+    currentThemeIndex = THEMES.indexOf(saved);
+    applyTheme(saved);
+  } else {
+    applyTheme("theme-green"); // por defecto verde
+  }
+})();
+
 /* =========================================================
    INICIO
 ========================================================= */
 initVoice();
 setupCalibration();
 updateModeBadge();
+
+// Registrar Service Worker (PWA)
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("./sw.js").catch(console.error);
+}
 </script>
 </body>
 </html>
