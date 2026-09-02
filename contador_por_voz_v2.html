@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Contador por voz</title>
+<style>
+body{margin:0;min-height:100vh;display:grid;place-items:center;background:#111827;color:#fff;font-family:Arial,sans-serif}
+.card{width:min(92vw,520px);padding:28px;border-radius:24px;background:#1f2937;text-align:center}
+h1{margin:0 0 10px}.count{font-size:110px;font-weight:bold;margin:20px 0}
+button{padding:14px 20px;margin:5px;border:0;border-radius:12px;font-size:17px;font-weight:bold}
+#start{background:#22c55e}#reset{background:#374151;color:white}
+#heard{margin:20px 0;padding:12px;background:#111827;border-radius:10px;color:#d1d5db;min-height:24px}
+#status{color:#86efac;min-height:24px}
+</style>
+</head>
+<body>
+<div class="card">
+<h1>🎤 Contador por voz</h1>
+<div id="count" class="count">0</div>
+<div id="status">Listo</div>
+<div id="heard">Lo que escucho aparecerá acá…</div>
+<button id="start">🎙️ Empezar</button>
+<button id="reset">↺ Reiniciar</button>
+</div>
+
+<script>
+let count=0,active=false,rec;
+
+const nums={
+"cero":0,"uno":1,"una":1,"dos":2,"tres":3,"cuatro":4,"cinco":5,
+"seis":6,"siete":7,"ocho":8,"nueve":9,"diez":10,"once":11,"doce":12,
+"trece":13,"catorce":14,"quince":15,"dieciseis":16,"dieciséis":16,
+"diecisiete":17,"dieciocho":18,"diecinueve":19,"veinte":20,
+"veintiuno":21,"veintidós":22,"veintidos":22,"veintitrés":23,"veintitres":23,
+"veinticuatro":24,"veinticinco":25,"veintiséis":26,"veintiseis":26,
+"veintisiete":27,"veintiocho":28,"veintinueve":29,"treinta":30,
+"cuarenta":40,"cincuenta":50,"sesenta":60,"setenta":70,"ochenta":80,
+"noventa":90,"cien":100
+};
+
+function normal(s){
+ return s.toLowerCase()
+ .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+ .replace(/[.,!?¿¡]/g,"").trim();
+}
+
+function process(text){
+ const words=normal(text).split(/\s+/);
+ // Busca números dentro de una frase, no hace falta que la frase sea solo el número.
+ for(let i=0;i<words.length;i++){
+   let w=words[i];
+   if(nums[w]!==undefined){
+     count++;
+     document.getElementById("count").textContent=count;
+   }
+ }
+}
+
+function init(){
+ const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+ if(!SR){
+   document.getElementById("status").textContent="Este navegador no admite reconocimiento de voz. Probá Chrome.";
+   return;
+ }
+ rec=new SR();
+ rec.lang="es-AR";
+ rec.continuous=true;
+ rec.interimResults=true;
+
+ rec.onstart=()=>{
+   active=true;
+   document.getElementById("start").textContent="🛑 Detener";
+   document.getElementById("status").textContent="Escuchando…";
+ };
+ rec.onresult=e=>{
+   let full="";
+   for(let i=e.resultIndex;i<e.results.length;i++){
+     full+=e.results[i][0].transcript+" ";
+     if(e.results[i].isFinal) process(e.results[i][0].transcript);
+   }
+   document.getElementById("heard").textContent="Escuché: "+full.trim();
+ };
+ rec.onerror=e=>{
+   document.getElementById("status").textContent=
+     e.error==="not-allowed"?"⚠️ Permití el acceso al micrófono.":"Error: "+e.error;
+ };
+ rec.onend=()=>{
+   if(active){try{rec.start()}catch(e){}}
+   else{
+     document.getElementById("start").textContent="🎙️ Empezar";
+     document.getElementById("status").textContent="Pausado";
+   }
+ };
+}
+document.getElementById("start").onclick=()=>{
+ if(!rec)return;
+ if(active){active=false;rec.stop();}
+ else{try{rec.start()}catch(e){}}
+};
+document.getElementById("reset").onclick=()=>{
+ count=0;document.getElementById("count").textContent="0";
+};
+init();
+</script>
+</body>
+</html>
