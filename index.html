@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+    <!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -19,12 +19,12 @@
   }
 
   #count {
-    font-size: clamp(90px, 22vw, 160px);
+    font-size: clamp(110px, 28vw, 180px);
     font-weight: 800;
     line-height: 1;
-    margin: 10px 0 8px;
+    margin: 6px 0 6px;
     text-align: center;
-    letter-spacing: -2px;
+    letter-spacing: -3px;
   }
 
   #status {
@@ -56,30 +56,31 @@
   #start { background: #22c55e; color: #000; }
   #reset { background: #333; color: #fff; }
   #camBtn { background: #3b82f6; color: #fff; }
+  #switchCamBtn { background: #8b5cf6; color: #fff; display: none; }
   #calibrateBtn { background: #f59e0b; color: #000; display: none; }
 
   #heard {
-    width: min(94vw, 480px);
-    min-height: 42px;
-    padding: 12px;
-    border-radius: 12px;
+    width: min(90vw, 400px);
+    min-height: 36px;
+    padding: 10px;
+    border-radius: 10px;
     background: #151515;
     color: #aaa;
     text-align: center;
-    font-size: 14px;
-    margin-bottom: 14px;
+    font-size: 13px;
+    margin-bottom: 10px;
   }
 
   /* Cámara */
   .cam-container {
     position: relative;
-    width: min(94vw, 420px);
+    width: min(70vw, 280px);
     aspect-ratio: 4/3;
     background: #111;
-    border-radius: 16px;
+    border-radius: 14px;
     overflow: hidden;
     display: none;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
     border: 2px solid #333;
   }
 
@@ -89,7 +90,6 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
-    transform: scaleX(-1); /* espejo para que sea más intuitivo */
   }
 
   #overlay {
@@ -142,6 +142,7 @@
 <div class="buttons">
   <button id="start">Empezar Voz</button>
   <button id="camBtn">Cámara</button>
+  <button id="switchCamBtn">Cambiar cámara</button>
   <button id="reset">Reiniciar</button>
   <button id="calibrateBtn">Calibrar centro</button>
 </div>
@@ -151,12 +152,12 @@
 <div class="cam-container" id="camContainer">
   <video id="video" playsinline muted autoplay></video>
   <canvas id="overlay"></canvas>
-  <div id="camInfo">Apuntá al tornillo plateado del bobinador</div>
+  <div id="camInfo">Apuntá la cámara delantera a la tuerca plateada</div>
 </div>
 
 <p class="hint" id="hint">
-  Cámara: apuntá al disco rojo. Tocá la pantalla para marcar el centro de giro. 
-  El tornillo brillante se usa como referencia.
+  Celular boca arriba → usa la cámara delantera.<br>
+  Apuntá hacia la tuerca (flecha verde). Tocá el centro del disco rojo para calibrar.
 </p>
 
 <script>
@@ -176,20 +177,20 @@ let ctx = null;
 let animId = null;
 
 // Calibración
-let centerX = null;   // centro de rotación (en coords del video)
+let centerX = null;
 let centerY = null;
-let radius = 80;      // radio de búsqueda del tornillo
+let radius = 80;
 let calibrated = false;
 
 // Tracking del ángulo
 let lastAngle = null;
 let accumulatedAngle = 0;
 let lastDetectedTime = 0;
-const MIN_ANGLE_DELTA = 25;   // grados mínimos para considerar movimiento
+const MIN_ANGLE_DELTA = 25;
 const FULL_TURN = 360;
 
 /* =========================================================
-   NÚMEROS DEL 0 AL 800 (igual que tu versión original)
+   NÚMEROS DEL 0 AL 800
 ========================================================= */
 const unidades = ["cero","uno","dos","tres","cuatro","cinco","seis","siete","ocho","nueve"];
 const especiales = {10:"diez",11:"once",12:"doce",13:"trece",14:"catorce",15:"quince",16:"dieciseis",17:"diecisiete",18:"dieciocho",19:"diecinueve"};
@@ -234,7 +235,7 @@ for (const word of Object.keys(numberWords)) {
 }
 
 /* =========================================================
-   PROCESAR VOZ (mejorado: ahora también responde a comandos de cámara)
+   PROCESAR VOZ
 ========================================================= */
 function process(text) {
   const clean = normal(text);
@@ -246,7 +247,6 @@ function process(text) {
   while (i < words.length) {
     let found = null;
 
-    // Comandos especiales
     if (words[i] === "camara" || words[i] === "cámara") {
       toggleCamera();
       i++;
@@ -258,12 +258,10 @@ function process(text) {
       continue;
     }
 
-    // Palabras para contar una vuelta
     if (words[i] === "siguiente" || words[i] === "vuelta" || words[i] === "una") {
       found = { length: 1 };
     }
 
-    // Buscar números
     if (!found) {
       for (let length = 5; length >= 1; length--) {
         if (i + length > words.length) continue;
@@ -287,7 +285,6 @@ function process(text) {
 function incrementCount() {
   count++;
   document.getElementById("count").textContent = count;
-  // Feedback visual rápido
   const el = document.getElementById("count");
   el.style.transform = "scale(1.08)";
   setTimeout(() => el.style.transform = "scale(1)", 80);
@@ -355,16 +352,33 @@ async function toggleCamera() {
   }
 }
 
-async function startCamera() {
+let currentFacingMode = "user"; // por defecto delantera
+
+async function startCamera(facing = currentFacingMode) {
+  if (stream) {
+    stream.getTracks().forEach(t => t.stop());
+    stream = null;
+  }
+
   try {
-    stream = await navigator.mediaDevices.getUserMedia({
+    let constraints = {
       video: {
-        facingMode: { ideal: "environment" }, // cámara trasera
+        facingMode: { exact: facing },
         width: { ideal: 640 },
         height: { ideal: 480 }
       },
       audio: false
-    });
+    };
+
+    try {
+      stream = await navigator.mediaDevices.getUserMedia(constraints);
+    } catch (e) {
+      console.warn("Exact falló, probando ideal...", e);
+      constraints.video.facingMode = { ideal: facing };
+      stream = await navigator.mediaDevices.getUserMedia(constraints);
+    }
+
+    currentFacingMode = facing;
 
     video = document.getElementById("video");
     overlay = document.getElementById("overlay");
@@ -373,7 +387,6 @@ async function startCamera() {
     video.srcObject = stream;
     await video.play();
 
-    // Ajustar canvas al tamaño real del video
     const resize = () => {
       overlay.width = video.videoWidth || 640;
       overlay.height = video.videoHeight || 480;
@@ -383,14 +396,19 @@ async function startCamera() {
 
     document.getElementById("camContainer").classList.add("active");
     document.getElementById("calibrateBtn").style.display = "inline-block";
+    document.getElementById("switchCamBtn").style.display = "inline-block";
     camActive = true;
     updateStatus();
     updateModeBadge();
 
-    // Empezar loop de análisis
     lastAngle = null;
     accumulatedAngle = 0;
+    calibrated = false;
+    centerX = centerY = null;
     processFrame();
+
+    const camName = facing === "user" ? "DELANTERA" : "TRASERA";
+    document.getElementById("status").textContent = "Cámara " + camName + " activa";
 
   } catch (err) {
     console.error(err);
@@ -407,6 +425,7 @@ function stopCamera() {
   }
   document.getElementById("camContainer").classList.remove("active");
   document.getElementById("calibrateBtn").style.display = "none";
+  document.getElementById("switchCamBtn").style.display = "none";
   calibrated = false;
   centerX = centerY = null;
   updateStatus();
@@ -416,33 +435,26 @@ function stopCamera() {
 function processFrame() {
   if (!camActive) return;
 
-  // Dibujar video en canvas oculto para analizar (usamos el mismo overlay)
-  // Como el video está espejado en CSS, trabajamos con las coords del video real
   const w = overlay.width;
   const h = overlay.height;
 
-  // Limpiar overlay
   ctx.clearRect(0, 0, w, h);
 
   if (calibrated && centerX !== null) {
-    // Dibujar círculo de búsqueda
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
     ctx.strokeStyle = "rgba(34, 197, 94, 0.7)";
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Centro
     ctx.beginPath();
     ctx.arc(centerX, centerY, 5, 0, Math.PI * 2);
     ctx.fillStyle = "#22c55e";
     ctx.fill();
 
-    // Buscar el punto más brillante dentro del radio (el tornillo metálico)
     const bright = findBrightestPoint(centerX, centerY, radius);
 
     if (bright) {
-      // Dibujar el punto detectado
       ctx.beginPath();
       ctx.arc(bright.x, bright.y, 8, 0, Math.PI * 2);
       ctx.fillStyle = "#f59e0b";
@@ -451,7 +463,6 @@ function processFrame() {
       ctx.lineWidth = 2;
       ctx.stroke();
 
-      // Línea desde el centro al punto
       ctx.beginPath();
       ctx.moveTo(centerX, centerY);
       ctx.lineTo(bright.x, bright.y);
@@ -459,34 +470,27 @@ function processFrame() {
       ctx.lineWidth = 2;
       ctx.stroke();
 
-      // Calcular ángulo
       const angle = Math.atan2(bright.y - centerY, bright.x - centerX) * (180 / Math.PI);
-      // Normalizar 0-360
       let ang = (angle + 360) % 360;
 
       document.getElementById("camInfo").textContent =
         `Ángulo: ${ang.toFixed(0)}°  |  Vueltas: ${count}`;
 
-      // Detección de vuelta completa
       if (lastAngle !== null) {
         let delta = ang - lastAngle;
 
-        // Ajuste por cruce de 0°/360°
         if (delta > 180) delta -= 360;
         if (delta < -180) delta += 360;
 
-        // Solo contamos si hay movimiento significativo (evita ruido)
         if (Math.abs(delta) > 3) {
           accumulatedAngle += delta;
 
-          // Una vuelta completa (en cualquier sentido)
           if (Math.abs(accumulatedAngle) >= FULL_TURN) {
             const turns = Math.floor(Math.abs(accumulatedAngle) / FULL_TURN);
             for (let t = 0; t < turns; t++) {
               incrementCount();
             }
             accumulatedAngle = accumulatedAngle % FULL_TURN;
-            // Pequeño feedback
             document.getElementById("camInfo").textContent += "  ✓ Vuelta!";
           }
         }
@@ -502,15 +506,12 @@ function processFrame() {
   animId = requestAnimationFrame(processFrame);
 }
 
-// Encuentra el pixel más brillante dentro del círculo
 function findBrightestPoint(cx, cy, r) {
-  // Creamos un canvas temporal para leer los píxeles del video
   const tempCanvas = document.createElement("canvas");
   tempCanvas.width = overlay.width;
   tempCanvas.height = overlay.height;
   const tctx = tempCanvas.getContext("2d", { willReadFrequently: true });
 
-  // Como el video está espejado en CSS, pero el stream no, dibujamos normal
   tctx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
 
   const imgData = tctx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
@@ -520,7 +521,7 @@ function findBrightestPoint(cx, cy, r) {
   let bestX = null, bestY = null;
 
   const r2 = r * r;
-  const step = 2; // saltamos píxeles para más velocidad
+  const step = 2;
 
   for (let y = Math.max(0, cy - r); y < Math.min(tempCanvas.height, cy + r); y += step) {
     for (let x = Math.max(0, cx - r); x < Math.min(tempCanvas.width, cx + r); x += step) {
@@ -529,10 +530,9 @@ function findBrightestPoint(cx, cy, r) {
       if (dx*dx + dy*dy > r2) continue;
 
       const idx = (Math.floor(y) * tempCanvas.width + Math.floor(x)) * 4;
-      const bright = data[idx] * 0.3 + data[idx+1] * 0.6 + data[idx+2] * 0.1; // luminancia
+      const bright = data[idx] * 0.3 + data[idx+1] * 0.6 + data[idx+2] * 0.1;
 
-      // Preferimos puntos muy brillantes (metal)
-      if (bright > maxBright && bright > 140) { // umbral mínimo
+      if (bright > maxBright && bright > 140) {
         maxBright = bright;
         bestX = x;
         bestY = y;
@@ -544,7 +544,6 @@ function findBrightestPoint(cx, cy, r) {
   return { x: bestX, y: bestY, bright: maxBright };
 }
 
-// Calibración: el usuario toca el centro del disco
 function setupCalibration() {
   const container = document.getElementById("camContainer");
   container.addEventListener("click", (e) => {
@@ -554,18 +553,15 @@ function setupCalibration() {
     const scaleX = overlay.width / rect.width;
     const scaleY = overlay.height / rect.height;
 
-    // Como el video está espejado (scaleX(-1)), invertimos la X
     const clickX = (e.clientX - rect.left) * scaleX;
-    const mirroredX = overlay.width - clickX;
     const clickY = (e.clientY - rect.top) * scaleY;
 
-    centerX = mirroredX;
+    centerX = clickX;
     centerY = clickY;
     calibrated = true;
     lastAngle = null;
     accumulatedAngle = 0;
 
-    // Ajustar radio automáticamente (aprox 35% del ancho)
     radius = Math.min(overlay.width, overlay.height) * 0.28;
 
     document.getElementById("camInfo").textContent = "Calibrado ✓  —  Girando el eje...";
@@ -611,8 +607,12 @@ document.getElementById("reset").onclick = resetCount;
 
 document.getElementById("camBtn").onclick = toggleCamera;
 
+document.getElementById("switchCamBtn").onclick = () => {
+  const next = currentFacingMode === "user" ? "environment" : "user";
+  startCamera(next);
+};
+
 document.getElementById("calibrateBtn").onclick = () => {
-  // Solo muestra el mensaje, la calibración real es tocando el video
   document.getElementById("camInfo").textContent = "Tocá el CENTRO del disco rojo ahora";
   document.getElementById("status").textContent = "Tocá el centro del disco en la imagen";
 };
