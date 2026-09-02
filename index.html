@@ -1,528 +1,628 @@
-      <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-
-<title>Contador</title>
-
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Contador Bobinado + Cámara</title>
 <style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    background: #000;
+    color: #fff;
+    font-family: system-ui, -apple-system, Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 12px;
+    overflow-x: hidden;
+  }
 
-*{
-  box-sizing:border-box;
-}
+  #count {
+    font-size: clamp(90px, 22vw, 160px);
+    font-weight: 800;
+    line-height: 1;
+    margin: 10px 0 8px;
+    text-align: center;
+    letter-spacing: -2px;
+  }
 
-body{
-  margin:0;
-  min-height:100vh;
-  background:#000;
-  color:#fff;
-  font-family:Arial,sans-serif;
-  display:flex;
-  flex-direction:column;
-  justify-content:center;
-  align-items:center;
-  padding:20px;
-}
+  #status {
+    min-height: 22px;
+    margin-bottom: 10px;
+    color: #86efac;
+    text-align: center;
+    font-size: 15px;
+  }
 
-#count{
-  font-size:150px;
-  font-weight:bold;
-  line-height:1;
-  margin-bottom:45px;
-  text-align:center;
-}
+  .buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    margin-bottom: 14px;
+  }
 
-.buttons{
-  display:flex;
-  gap:12px;
-  margin-bottom:25px;
-}
+  button {
+    border: 0;
+    border-radius: 14px;
+    padding: 14px 18px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    min-width: 110px;
+  }
 
-button{
-  border:0;
-  border-radius:14px;
-  padding:16px 24px;
-  font-size:18px;
-  font-weight:bold;
-  cursor:pointer;
-}
+  #start { background: #22c55e; color: #000; }
+  #reset { background: #333; color: #fff; }
+  #camBtn { background: #3b82f6; color: #fff; }
+  #calibrateBtn { background: #f59e0b; color: #000; display: none; }
 
-#start{
-  background:#22c55e;
-  color:#000;
-}
+  #heard {
+    width: min(94vw, 480px);
+    min-height: 42px;
+    padding: 12px;
+    border-radius: 12px;
+    background: #151515;
+    color: #aaa;
+    text-align: center;
+    font-size: 14px;
+    margin-bottom: 14px;
+  }
 
-#reset{
-  background:#333;
-  color:#fff;
-}
+  /* Cámara */
+  .cam-container {
+    position: relative;
+    width: min(94vw, 420px);
+    aspect-ratio: 4/3;
+    background: #111;
+    border-radius: 16px;
+    overflow: hidden;
+    display: none;
+    margin-bottom: 12px;
+    border: 2px solid #333;
+  }
 
-#heard{
-  width:min(90vw,500px);
-  min-height:48px;
-  padding:14px;
-  border-radius:12px;
-  background:#151515;
-  color:#aaa;
-  text-align:center;
-  font-size:16px;
-}
+  .cam-container.active { display: block; }
 
-#status{
-  min-height:24px;
-  margin-bottom:12px;
-  color:#86efac;
-  text-align:center;
-}
+  #video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scaleX(-1); /* espejo para que sea más intuitivo */
+  }
 
+  #overlay {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+
+  #camInfo {
+    position: absolute;
+    bottom: 8px;
+    left: 0; right: 0;
+    text-align: center;
+    font-size: 13px;
+    color: #fff;
+    text-shadow: 0 1px 3px #000;
+    background: rgba(0,0,0,0.45);
+    padding: 4px;
+  }
+
+  .hint {
+    font-size: 13px;
+    color: #888;
+    text-align: center;
+    max-width: 360px;
+    line-height: 1.4;
+    margin-top: 6px;
+  }
+
+  .mode-badge {
+    display: inline-block;
+    background: #1e293b;
+    color: #94a3b8;
+    font-size: 12px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin-bottom: 8px;
+  }
 </style>
 </head>
-
 <body>
 
-<div id="count">0</div>
+<div class="mode-badge" id="modeBadge">Modo: Voz</div>
 
+<div id="count">0</div>
 <div id="status">Listo</div>
 
 <div class="buttons">
-
-<button id="start">Empezar</button>
-
-<button id="reset">Reiniciar</button>
-
+  <button id="start">Empezar Voz</button>
+  <button id="camBtn">Cámara</button>
+  <button id="reset">Reiniciar</button>
+  <button id="calibrateBtn">Calibrar centro</button>
 </div>
 
-<div id="heard">
-Lo que escucho aparecerá acá…
+<div id="heard">Lo que escucho aparecerá acá…</div>
+
+<div class="cam-container" id="camContainer">
+  <video id="video" playsinline muted autoplay></video>
+  <canvas id="overlay"></canvas>
+  <div id="camInfo">Apuntá al tornillo plateado del bobinador</div>
 </div>
 
+<p class="hint" id="hint">
+  Cámara: apuntá al disco rojo. Tocá la pantalla para marcar el centro de giro. 
+  El tornillo brillante se usa como referencia.
+</p>
 
 <script>
+/* =========================================================
+   VARIABLES GLOBALES
+========================================================= */
+let count = 0;
+let voiceActive = false;
+let camActive = false;
+let rec = null;
 
-let count=0;
-let active=false;
-let rec;
+// Cámara / detección
+let stream = null;
+let video = null;
+let overlay = null;
+let ctx = null;
+let animId = null;
 
+// Calibración
+let centerX = null;   // centro de rotación (en coords del video)
+let centerY = null;
+let radius = 80;      // radio de búsqueda del tornillo
+let calibrated = false;
 
-/* =========================================
-   NÚMEROS DEL 0 AL 800
-========================================= */
+// Tracking del ángulo
+let lastAngle = null;
+let accumulatedAngle = 0;
+let lastDetectedTime = 0;
+const MIN_ANGLE_DELTA = 25;   // grados mínimos para considerar movimiento
+const FULL_TURN = 360;
 
-const unidades=[
-  "cero",
-  "uno",
-  "dos",
-  "tres",
-  "cuatro",
-  "cinco",
-  "seis",
-  "siete",
-  "ocho",
-  "nueve"
-];
+/* =========================================================
+   NÚMEROS DEL 0 AL 800 (igual que tu versión original)
+========================================================= */
+const unidades = ["cero","uno","dos","tres","cuatro","cinco","seis","siete","ocho","nueve"];
+const especiales = {10:"diez",11:"once",12:"doce",13:"trece",14:"catorce",15:"quince",16:"dieciseis",17:"diecisiete",18:"dieciocho",19:"diecinueve"};
+const decenas = {20:"veinte",30:"treinta",40:"cuarenta",50:"cincuenta",60:"sesenta",70:"setenta",80:"ochenta",90:"noventa"};
+const centenas = {100:"cien",200:"doscientos",300:"trescientos",400:"cuatrocientos",500:"quinientos",600:"seiscientos",700:"setecientos",800:"ochocientos"};
 
-const especiales={
-  10:"diez",
-  11:"once",
-  12:"doce",
-  13:"trece",
-  14:"catorce",
-  15:"quince",
-  16:"dieciseis",
-  17:"diecisiete",
-  18:"dieciocho",
-  19:"diecinueve"
-};
-
-const decenas={
-  20:"veinte",
-  30:"treinta",
-  40:"cuarenta",
-  50:"cincuenta",
-  60:"sesenta",
-  70:"setenta",
-  80:"ochenta",
-  90:"noventa"
-};
-
-const centenas={
-  100:"cien",
-  200:"doscientos",
-  300:"trescientos",
-  400:"cuatrocientos",
-  500:"quinientos",
-  600:"seiscientos",
-  700:"setecientos",
-  800:"ochocientos"
-};
-
-
-/* =========================================
-   NORMALIZAR TEXTO
-========================================= */
-
-function normal(text){
-
-  return text
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g,"")
+function normal(text) {
+  return text.toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
     .replace(/[.,!?¿¡]/g," ")
-    .replace(/\s+/g," ")
-    .trim();
-
+    .replace(/\s+/g," ").trim();
 }
 
-
-/* =========================================
-   CONVERTIR 1-99
-========================================= */
-
-function convertirMenor100(n){
-
-  if(n<10){
-    return unidades[n];
+function convertirMenor100(n) {
+  if (n < 10) return unidades[n];
+  if (n <= 19) return especiales[n];
+  if (n === 20) return "veinte";
+  if (n >= 21 && n <= 29) {
+    const nombres = ["","uno","dos","tres","cuatro","cinco","seis","siete","ocho","nueve"];
+    return "veinti" + nombres[n-20];
   }
+  const dec = Math.floor(n/10)*10;
+  const u = n % 10;
+  if (u === 0) return decenas[dec];
+  return decenas[dec] + " y " + unidades[u];
+}
 
-  if(n<=19){
-    return especiales[n];
+const numberWords = {};
+for (let i = 0; i <= 9; i++) numberWords[unidades[i]] = i;
+for (let i = 10; i <= 19; i++) numberWords[especiales[i]] = i;
+for (let i = 20; i <= 99; i++) numberWords[convertirMenor100(i)] = i;
+for (let cen = 100; cen <= 800; cen += 100) {
+  numberWords[centenas[cen]] = cen;
+  if (cen === 800) break;
+  for (let resto = 1; resto <= 99; resto++) {
+    let texto = (cen === 100) ? "ciento " + convertirMenor100(resto) : centenas[cen] + " " + convertirMenor100(resto);
+    numberWords[texto] = cen + resto;
   }
-
-  if(n===20){
-    return "veinte";
-  }
-
-  if(n>=21 && n<=29){
-
-    const nombres=[
-      "",
-      "uno",
-      "dos",
-      "tres",
-      "cuatro",
-      "cinco",
-      "seis",
-      "siete",
-      "ocho",
-      "nueve"
-    ];
-
-    return "veinti"+nombres[n-20];
-  }
-
-  const dec=Math.floor(n/10)*10;
-  const u=n%10;
-
-  if(u===0){
-    return decenas[dec];
-  }
-
-  return decenas[dec]+" y "+unidades[u];
-
+}
+for (const word of Object.keys(numberWords)) {
+  numberWords[normal(word)] = numberWords[word];
 }
 
-
-/* =========================================
-   CREAR TODOS LOS NÚMEROS 0-800
-========================================= */
-
-const numberWords={};
-
-
-/* 0-9 */
-
-for(let i=0;i<=9;i++){
-  numberWords[unidades[i]]=i;
-}
-
-
-/* 10-19 */
-
-for(let i=10;i<=19;i++){
-  numberWords[especiales[i]]=i;
-}
-
-
-/* 20-99 */
-
-for(let i=20;i<=99;i++){
-  numberWords[convertirMenor100(i)]=i;
-}
-
-
-/* 100-800 */
-
-for(let cen=100;cen<=800;cen+=100){
-
-  numberWords[centenas[cen]]=cen;
-
-  if(cen===800) break;
-
-  for(let resto=1;resto<=99;resto++){
-
-    let texto;
-
-    if(cen===100){
-
-      texto="ciento "+convertirMenor100(resto);
-
-    }else{
-
-      texto=centenas[cen]+" "+convertirMenor100(resto);
-
-    }
-
-    numberWords[texto]=cen+resto;
-
-  }
-
-}
-
-
-/* =========================================
-   AGREGAR VERSIONES SIN ACENTOS
-========================================= */
-
-for(const word of Object.keys(numberWords)){
-
-  numberWords[normal(word)]=numberWords[word];
-
-}
-
-
-/* =========================================
-   PROCESAR VOZ
-========================================= */
-
-function process(text){
-
-  const clean=normal(text);
-
-  document.getElementById("heard").textContent=
-    "Escuché: "+text.trim();
-
-
-  const words=clean.split(/\s+/);
-
-  let i=0;
-
-
-  while(i<words.length){
-
-    let found=null;
-
-
-    /*
-      PALABRAS PARA CONTAR UNA VUELTA
-    */
-
-    if(
-      words[i]==="siguiente" ||
-      words[i]==="vuelta" ||
-      words[i]==="una"
-    ){
-
-      found={
-        length:1
-      };
-
-    }
-
-
-    /*
-      BUSCAR NÚMEROS
-    */
-
-    if(!found){
-
-      for(let length=5;length>=1;length--){
-
-        if(i+length>words.length) continue;
-
-        const phrase=
-          words.slice(i,i+length).join(" ");
-
-
-        if(numberWords[phrase]!==undefined){
-
-          found={
-            length:length
-          };
-
-          break;
-
-        }
-
-      }
-
-    }
-
-
-    /*
-      SUMAR
-    */
-
-    if(found){
-
-      count++;
-
-      document.getElementById("count").textContent=
-        count;
-
-      i+=found.length;
-
-    }else{
-
+/* =========================================================
+   PROCESAR VOZ (mejorado: ahora también responde a comandos de cámara)
+========================================================= */
+function process(text) {
+  const clean = normal(text);
+  document.getElementById("heard").textContent = "Escuché: " + text.trim();
+
+  const words = clean.split(/\s+/);
+  let i = 0;
+
+  while (i < words.length) {
+    let found = null;
+
+    // Comandos especiales
+    if (words[i] === "camara" || words[i] === "cámara") {
+      toggleCamera();
       i++;
-
+      continue;
+    }
+    if (words[i] === "reiniciar" || words[i] === "reset") {
+      resetCount();
+      i++;
+      continue;
     }
 
-  }
+    // Palabras para contar una vuelta
+    if (words[i] === "siguiente" || words[i] === "vuelta" || words[i] === "una") {
+      found = { length: 1 };
+    }
 
-}
-
-
-/* =========================================
-   RECONOCIMIENTO DE VOZ
-========================================= */
-
-function init(){
-
-  const SR=
-    window.SpeechRecognition ||
-    window.webkitSpeechRecognition;
-
-
-  if(!SR){
-
-    document.getElementById("status").textContent=
-      "Usá Chrome para reconocer la voz.";
-
-    return;
-
-  }
-
-
-  rec=new SR();
-
-  rec.lang="es-AR";
-
-  rec.continuous=true;
-
-  rec.interimResults=true;
-
-
-  rec.onstart=()=>{
-
-    active=true;
-
-    document.getElementById("start").textContent=
-      "Detener";
-
-    document.getElementById("status").textContent=
-      "Escuchando…";
-
-  };
-
-
-  rec.onresult=e=>{
-
-    for(
-      let i=e.resultIndex;
-      i<e.results.length;
-      i++
-    ){
-
-      if(e.results[i].isFinal){
-
-        process(
-          e.results[i][0].transcript
-        );
-
+    // Buscar números
+    if (!found) {
+      for (let length = 5; length >= 1; length--) {
+        if (i + length > words.length) continue;
+        const phrase = words.slice(i, i + length).join(" ");
+        if (numberWords[phrase] !== undefined) {
+          found = { length };
+          break;
+        }
       }
-
     }
 
-  };
-
-
-  rec.onerror=e=>{
-
-    document.getElementById("status").textContent=
-      e.error==="not-allowed"
-      ? "⚠️ Permití el acceso al micrófono."
-      : "Error: "+e.error;
-
-  };
-
-
-  rec.onend=()=>{
-
-    if(active){
-
-      try{
-        rec.start();
-      }catch(e){}
-
-    }else{
-
-      document.getElementById("start").textContent=
-        "Empezar";
-
-      document.getElementById("status").textContent=
-        "Pausado";
-
+    if (found) {
+      incrementCount();
+      i += found.length;
+    } else {
+      i++;
     }
-
-  };
-
+  }
 }
 
+function incrementCount() {
+  count++;
+  document.getElementById("count").textContent = count;
+  // Feedback visual rápido
+  const el = document.getElementById("count");
+  el.style.transform = "scale(1.08)";
+  setTimeout(() => el.style.transform = "scale(1)", 80);
+}
 
-/* =========================================
-   EMPEZAR / DETENER
-========================================= */
+function resetCount() {
+  count = 0;
+  document.getElementById("count").textContent = "0";
+  accumulatedAngle = 0;
+  lastAngle = null;
+}
 
-document.getElementById("start").onclick=()=>{
-
-  if(!rec)return;
-
-
-  if(active){
-
-    active=false;
-
-    rec.stop();
-
-  }else{
-
-    try{
-      rec.start();
-    }catch(e){}
-
+/* =========================================================
+   RECONOCIMIENTO DE VOZ
+========================================================= */
+function initVoice() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    document.getElementById("status").textContent = "Usá Chrome para reconocer la voz.";
+    return;
   }
 
+  rec = new SR();
+  rec.lang = "es-AR";
+  rec.continuous = true;
+  rec.interimResults = true;
+
+  rec.onstart = () => {
+    voiceActive = true;
+    document.getElementById("start").textContent = "Detener Voz";
+    updateStatus();
+  };
+
+  rec.onresult = e => {
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) {
+        process(e.results[i][0].transcript);
+      }
+    }
+  };
+
+  rec.onerror = e => {
+    document.getElementById("status").textContent =
+      e.error === "not-allowed" ? "⚠️ Permití el acceso al micrófono." : "Error voz: " + e.error;
+  };
+
+  rec.onend = () => {
+    if (voiceActive) {
+      try { rec.start(); } catch (e) {}
+    } else {
+      document.getElementById("start").textContent = "Empezar Voz";
+      updateStatus();
+    }
+  };
+}
+
+/* =========================================================
+   CÁMARA + DETECCIÓN DEL TORNILLO
+========================================================= */
+async function toggleCamera() {
+  if (camActive) {
+    stopCamera();
+  } else {
+    await startCamera();
+  }
+}
+
+async function startCamera() {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: { ideal: "environment" }, // cámara trasera
+        width: { ideal: 640 },
+        height: { ideal: 480 }
+      },
+      audio: false
+    });
+
+    video = document.getElementById("video");
+    overlay = document.getElementById("overlay");
+    ctx = overlay.getContext("2d");
+
+    video.srcObject = stream;
+    await video.play();
+
+    // Ajustar canvas al tamaño real del video
+    const resize = () => {
+      overlay.width = video.videoWidth || 640;
+      overlay.height = video.videoHeight || 480;
+    };
+    video.onloadedmetadata = resize;
+    resize();
+
+    document.getElementById("camContainer").classList.add("active");
+    document.getElementById("calibrateBtn").style.display = "inline-block";
+    camActive = true;
+    updateStatus();
+    updateModeBadge();
+
+    // Empezar loop de análisis
+    lastAngle = null;
+    accumulatedAngle = 0;
+    processFrame();
+
+  } catch (err) {
+    console.error(err);
+    document.getElementById("status").textContent = "No se pudo abrir la cámara: " + err.message;
+  }
+}
+
+function stopCamera() {
+  camActive = false;
+  if (animId) cancelAnimationFrame(animId);
+  if (stream) {
+    stream.getTracks().forEach(t => t.stop());
+    stream = null;
+  }
+  document.getElementById("camContainer").classList.remove("active");
+  document.getElementById("calibrateBtn").style.display = "none";
+  calibrated = false;
+  centerX = centerY = null;
+  updateStatus();
+  updateModeBadge();
+}
+
+function processFrame() {
+  if (!camActive) return;
+
+  // Dibujar video en canvas oculto para analizar (usamos el mismo overlay)
+  // Como el video está espejado en CSS, trabajamos con las coords del video real
+  const w = overlay.width;
+  const h = overlay.height;
+
+  // Limpiar overlay
+  ctx.clearRect(0, 0, w, h);
+
+  if (calibrated && centerX !== null) {
+    // Dibujar círculo de búsqueda
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(34, 197, 94, 0.7)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Centro
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, 5, 0, Math.PI * 2);
+    ctx.fillStyle = "#22c55e";
+    ctx.fill();
+
+    // Buscar el punto más brillante dentro del radio (el tornillo metálico)
+    const bright = findBrightestPoint(centerX, centerY, radius);
+
+    if (bright) {
+      // Dibujar el punto detectado
+      ctx.beginPath();
+      ctx.arc(bright.x, bright.y, 8, 0, Math.PI * 2);
+      ctx.fillStyle = "#f59e0b";
+      ctx.fill();
+      ctx.strokeStyle = "#fff";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Línea desde el centro al punto
+      ctx.beginPath();
+      ctx.moveTo(centerX, centerY);
+      ctx.lineTo(bright.x, bright.y);
+      ctx.strokeStyle = "rgba(245, 158, 11, 0.8)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Calcular ángulo
+      const angle = Math.atan2(bright.y - centerY, bright.x - centerX) * (180 / Math.PI);
+      // Normalizar 0-360
+      let ang = (angle + 360) % 360;
+
+      document.getElementById("camInfo").textContent =
+        `Ángulo: ${ang.toFixed(0)}°  |  Vueltas: ${count}`;
+
+      // Detección de vuelta completa
+      if (lastAngle !== null) {
+        let delta = ang - lastAngle;
+
+        // Ajuste por cruce de 0°/360°
+        if (delta > 180) delta -= 360;
+        if (delta < -180) delta += 360;
+
+        // Solo contamos si hay movimiento significativo (evita ruido)
+        if (Math.abs(delta) > 3) {
+          accumulatedAngle += delta;
+
+          // Una vuelta completa (en cualquier sentido)
+          if (Math.abs(accumulatedAngle) >= FULL_TURN) {
+            const turns = Math.floor(Math.abs(accumulatedAngle) / FULL_TURN);
+            for (let t = 0; t < turns; t++) {
+              incrementCount();
+            }
+            accumulatedAngle = accumulatedAngle % FULL_TURN;
+            // Pequeño feedback
+            document.getElementById("camInfo").textContent += "  ✓ Vuelta!";
+          }
+        }
+      }
+      lastAngle = ang;
+    } else {
+      document.getElementById("camInfo").textContent = "No veo el tornillo… iluminá mejor o recalibrá";
+    }
+  } else {
+    document.getElementById("camInfo").textContent = "Tocá el centro del disco rojo para calibrar";
+  }
+
+  animId = requestAnimationFrame(processFrame);
+}
+
+// Encuentra el pixel más brillante dentro del círculo
+function findBrightestPoint(cx, cy, r) {
+  // Creamos un canvas temporal para leer los píxeles del video
+  const tempCanvas = document.createElement("canvas");
+  tempCanvas.width = overlay.width;
+  tempCanvas.height = overlay.height;
+  const tctx = tempCanvas.getContext("2d", { willReadFrequently: true });
+
+  // Como el video está espejado en CSS, pero el stream no, dibujamos normal
+  tctx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
+
+  const imgData = tctx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+  const data = imgData.data;
+
+  let maxBright = 0;
+  let bestX = null, bestY = null;
+
+  const r2 = r * r;
+  const step = 2; // saltamos píxeles para más velocidad
+
+  for (let y = Math.max(0, cy - r); y < Math.min(tempCanvas.height, cy + r); y += step) {
+    for (let x = Math.max(0, cx - r); x < Math.min(tempCanvas.width, cx + r); x += step) {
+      const dx = x - cx;
+      const dy = y - cy;
+      if (dx*dx + dy*dy > r2) continue;
+
+      const idx = (Math.floor(y) * tempCanvas.width + Math.floor(x)) * 4;
+      const bright = data[idx] * 0.3 + data[idx+1] * 0.6 + data[idx+2] * 0.1; // luminancia
+
+      // Preferimos puntos muy brillantes (metal)
+      if (bright > maxBright && bright > 140) { // umbral mínimo
+        maxBright = bright;
+        bestX = x;
+        bestY = y;
+      }
+    }
+  }
+
+  if (bestX === null) return null;
+  return { x: bestX, y: bestY, bright: maxBright };
+}
+
+// Calibración: el usuario toca el centro del disco
+function setupCalibration() {
+  const container = document.getElementById("camContainer");
+  container.addEventListener("click", (e) => {
+    if (!camActive) return;
+
+    const rect = overlay.getBoundingClientRect();
+    const scaleX = overlay.width / rect.width;
+    const scaleY = overlay.height / rect.height;
+
+    // Como el video está espejado (scaleX(-1)), invertimos la X
+    const clickX = (e.clientX - rect.left) * scaleX;
+    const mirroredX = overlay.width - clickX;
+    const clickY = (e.clientY - rect.top) * scaleY;
+
+    centerX = mirroredX;
+    centerY = clickY;
+    calibrated = true;
+    lastAngle = null;
+    accumulatedAngle = 0;
+
+    // Ajustar radio automáticamente (aprox 35% del ancho)
+    radius = Math.min(overlay.width, overlay.height) * 0.28;
+
+    document.getElementById("camInfo").textContent = "Calibrado ✓  —  Girando el eje...";
+    document.getElementById("status").textContent = "Cámara calibrada. Empezá a bobinar.";
+  });
+}
+
+/* =========================================================
+   UI HELPERS
+========================================================= */
+function updateStatus() {
+  const parts = [];
+  if (voiceActive) parts.push("Voz activa");
+  if (camActive) parts.push(calibrated ? "Cámara detectando" : "Cámara esperando calibración");
+  if (parts.length === 0) parts.push("Listo");
+  document.getElementById("status").textContent = parts.join(" + ");
+}
+
+function updateModeBadge() {
+  let txt = "Modo: ";
+  if (voiceActive && camActive) txt += "Voz + Cámara";
+  else if (voiceActive) txt += "Voz";
+  else if (camActive) txt += "Cámara";
+  else txt += "Inactivo";
+  document.getElementById("modeBadge").textContent = txt;
+}
+
+/* =========================================================
+   EVENTOS
+========================================================= */
+document.getElementById("start").onclick = () => {
+  if (!rec) return;
+  if (voiceActive) {
+    voiceActive = false;
+    rec.stop();
+  } else {
+    try { rec.start(); } catch (e) {}
+  }
+  updateModeBadge();
 };
 
+document.getElementById("reset").onclick = resetCount;
 
-/* =========================================
-   REINICIAR
-========================================= */
+document.getElementById("camBtn").onclick = toggleCamera;
 
-document.getElementById("reset").onclick=()=>{
-
-  count=0;
-
-  document.getElementById("count").textContent=
-    "0";
-
+document.getElementById("calibrateBtn").onclick = () => {
+  // Solo muestra el mensaje, la calibración real es tocando el video
+  document.getElementById("camInfo").textContent = "Tocá el CENTRO del disco rojo ahora";
+  document.getElementById("status").textContent = "Tocá el centro del disco en la imagen";
 };
 
-
-init();
-
+/* =========================================================
+   INICIO
+========================================================= */
+initVoice();
+setupCalibration();
+updateModeBadge();
 </script>
-
 </body>
 </html>
