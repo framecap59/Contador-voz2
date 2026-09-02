@@ -1,4 +1,4 @@
-      <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -70,10 +70,10 @@
   }
 
   .icon-btn {
-    width: 42px;
-    height: 42px;
-    border-radius: 12px;
-    border: 1.5px solid var(--btn-border);
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    border: 1px solid var(--btn-border);
     background: var(--btn-bg);
     color: var(--btn-text);
     display: flex;
@@ -82,17 +82,19 @@
     cursor: pointer;
     padding: 0;
   }
-  .icon-btn svg { width: 20px; height: 20px; }
+  .icon-btn svg { width: 18px; height: 18px; }
   .icon-btn:active { transform: scale(0.94); }
 
   .mode-badge {
-    font-size: 12px;
-    color: #888;
-    background: #1a1a1a;
-    padding: 4px 10px;
-    border-radius: 20px;
+    font-size: 11px;
+    color: #777;
+    background: transparent;
+    padding: 4px 8px;
+    border-radius: 8px;
+    border: 1px solid #2a2a2a;
   }
 
+  /* Número grande centrado */
   .count-area {
     flex: 1;
     display: flex;
@@ -129,6 +131,7 @@
     min-height: 18px;
   }
 
+  /* Cámara */
   .cam-wrapper {
     width: 100%;
     display: flex;
@@ -195,6 +198,7 @@
     padding: 3px 4px;
   }
 
+  /* Botones secundarios */
   .secondary-row {
     display: flex;
     flex-wrap: wrap;
@@ -204,15 +208,15 @@
   }
 
   .sec-btn {
-    border: 1.5px solid var(--btn-border);
-    border-radius: 12px;
-    padding: 10px 14px;
+    border: 1px solid var(--btn-border);
+    border-radius: 10px;
+    padding: 10px 16px;
     font-size: 13px;
     font-weight: 600;
     background: var(--btn-bg);
     color: var(--btn-text);
     cursor: pointer;
-    min-width: 90px;
+    min-width: 88px;
   }
   .sec-btn:active { transform: scale(0.96); }
   .sec-btn.primary {
@@ -222,46 +226,46 @@
   }
   #switchCamBtn, #calibrateBtn { display: none; }
 
+  /* Botones grandes +/- abajo */
   .big-buttons {
     display: flex;
     width: 100%;
-    padding: 0;
+    padding: 0 12px 12px;
     margin-top: auto;
+    gap: 10px;
   }
   .big-btn {
     flex: 1;
-    height: 76px;
-    border: none;
-    font-size: 36px;
+    height: 64px;
+    border: 1px solid var(--btn-border);
+    border-radius: 14px;
+    font-size: 30px;
     font-weight: 600;
     cursor: pointer;
-    color: #fff;
-    background: var(--big-btn);
-    transition: filter 0.1s;
+    color: var(--btn-text);
+    background: var(--btn-bg);
+    transition: filter 0.1s, transform 0.08s;
   }
-  .big-btn:active { filter: brightness(1.25); }
+  .big-btn:active { transform: scale(0.97); }
   #minusBtn {
-    border-radius: 20px 0 0 0;
-    border-right: 1px solid #333;
+    color: var(--btn-text);
   }
   #plusBtn {
-    border-radius: 0 20px 0 0;
     background: var(--accent);
+    border-color: var(--accent);
     color: var(--accent-text);
   }
 
   .watermark {
-    position: fixed;
-    bottom: 6px;
-    right: 10px;
-    font-size: 10px;
-    color: #444;
-    opacity: 0.4;
-    pointer-events: none;
-    z-index: 50;
+    font-size: 11px;
+    color: #666;
+    opacity: 0.6;
     letter-spacing: 0.3px;
+    padding: 0 2px;
+    white-space: nowrap;
   }
 
+  /* Modal */
   .modal-overlay {
     position: fixed;
     inset: 0;
@@ -356,6 +360,7 @@
 </head>
 <body>
 
+<!-- Barra superior -->
 <div class="top-bar">
   <div class="top-bar-left">
     <button class="icon-btn" id="saveBtn" title="Historial">
@@ -371,6 +376,7 @@
         <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
       </svg>
     </button>
+    <span class="watermark">by quino</span>
   </div>
   <div class="mode-badge" id="modeBadge">Listo</div>
   <div class="top-bar-right">
@@ -378,12 +384,14 @@
   </div>
 </div>
 
+<!-- Número grande -->
 <div class="count-area">
   <div id="count">0</div>
   <div id="status">Listo</div>
   <div id="heard"></div>
 </div>
 
+<!-- Cámara (tocar para ocultar/mostrar) -->
 <div class="cam-wrapper">
   <div class="cam-container" id="camContainer" title="Tocar para ocultar/mostrar">
     <video id="video" playsinline muted autoplay></video>
@@ -392,6 +400,7 @@
   </div>
 </div>
 
+<!-- Botones secundarios -->
 <div class="secondary-row">
   <button class="sec-btn primary" id="start">Voz</button>
   <button class="sec-btn" id="camBtn">Cámara</button>
@@ -399,11 +408,13 @@
   <button class="sec-btn" id="calibrateBtn">Calibrar</button>
 </div>
 
+<!-- Botones grandes +/- -->
 <div class="big-buttons">
   <button class="big-btn" id="minusBtn">−</button>
   <button class="big-btn" id="plusBtn">+</button>
 </div>
 
+<!-- Modal Historial -->
 <div class="modal-overlay" id="historyModal">
   <div class="modal">
     <div class="modal-header">
@@ -417,6 +428,9 @@
 <div class="save-toast" id="saveToast">Guardado ✓</div>
 
 <script>
+/* =========================================================
+   VARIABLES
+========================================================= */
 let count = 0;
 let voiceActive = false;
 let camActive = false;
@@ -438,6 +452,9 @@ let lastCountTime = 0;
 const COUNT_COOLDOWN_MS = 400;
 const BRIGHTNESS_THRESHOLD = 145;
 
+/* =========================================================
+   NÚMEROS VOZ
+========================================================= */
 const unidades = ["cero","uno","dos","tres","cuatro","cinco","seis","siete","ocho","nueve"];
 const especiales = {10:"diez",11:"once",12:"doce",13:"trece",14:"catorce",15:"quince",16:"dieciseis",17:"diecisiete",18:"dieciocho",19:"diecinueve"};
 const decenas = {20:"veinte",30:"treinta",40:"cuarenta",50:"cincuenta",60:"sesenta",70:"setenta",80:"ochenta",90:"noventa"};
@@ -480,9 +497,13 @@ for (const word of Object.keys(numberWords)) {
   numberWords[normal(word)] = numberWords[word];
 }
 
+/* =========================================================
+   VOZ
+========================================================= */
 function process(text) {
   const clean = normal(text);
   document.getElementById("heard").textContent = text.trim() ? "Escuché: " + text.trim() : "";
+
   const words = clean.split(/\s+/);
   let i = 0;
   while (i < words.length) {
@@ -528,6 +549,7 @@ function initVoice() {
   rec.lang = "es-AR";
   rec.continuous = true;
   rec.interimResults = true;
+
   rec.onstart = () => {
     voiceActive = true;
     document.getElementById("start").textContent = "Detener";
@@ -552,6 +574,9 @@ function initVoice() {
   };
 }
 
+/* =========================================================
+   CÁMARA
+========================================================= */
 async function toggleCamera() {
   if (camActive) stopCamera();
   else await startCamera();
@@ -576,31 +601,37 @@ async function startCamera(facing = currentFacingMode) {
       stream = await navigator.mediaDevices.getUserMedia(constraints);
     }
     currentFacingMode = facing;
+
     video = document.getElementById("video");
     overlay = document.getElementById("overlay");
     ctx = overlay.getContext("2d");
     video.srcObject = stream;
     await video.play();
+
     const resize = () => {
       overlay.width = video.videoWidth || 640;
       overlay.height = video.videoHeight || 480;
     };
     video.onloadedmetadata = resize;
     resize();
+
     const container = document.getElementById("camContainer");
     container.classList.add("active");
     container.classList.remove("hidden-preview");
     camPreviewHidden = false;
+
     document.getElementById("calibrateBtn").style.display = "inline-block";
     document.getElementById("switchCamBtn").style.display = "inline-block";
     camActive = true;
     updateStatus();
+
     isNutVisible = false;
     lastCountTime = 0;
     lastSeenTime = 0;
     calibrated = false;
     zoneX = zoneY = null;
     processFrame();
+
     const camName = facing === "user" ? "DELANTERA" : "TRASERA";
     document.getElementById("status").textContent = "Cámara " + camName;
   } catch (err) {
@@ -636,18 +667,22 @@ function processFrame() {
   if (!camActive) return;
   const now = performance.now();
   ctx.clearRect(0, 0, overlay.width, overlay.height);
+
   if (calibrated && zoneX !== null) {
     ctx.beginPath();
     ctx.arc(zoneX, zoneY, zoneRadius, 0, Math.PI * 2);
     ctx.strokeStyle = isNutVisible ? "rgba(34,197,94,0.9)" : "rgba(239,68,68,0.7)";
     ctx.lineWidth = 3;
     ctx.stroke();
+
     ctx.beginPath();
     ctx.arc(zoneX, zoneY, 4, 0, Math.PI * 2);
     ctx.fillStyle = isNutVisible ? "#22c55e" : "#ef4444";
     ctx.fill();
+
     const bright = findBrightestInZone(zoneX, zoneY, zoneRadius);
     const currentlyVisible = bright !== null;
+
     if (currentlyVisible) {
       ctx.beginPath();
       ctx.arc(bright.x, bright.y, 9, 0, Math.PI * 2);
@@ -657,6 +692,7 @@ function processFrame() {
       ctx.lineWidth = 2;
       ctx.stroke();
     }
+
     if (currentlyVisible) {
       if (!isNutVisible) {
         if (now - lastCountTime > COUNT_COOLDOWN_MS) {
@@ -688,8 +724,10 @@ function findBrightestInZone(cx, cy, r) {
   const tctx = tempCanvas.getContext("2d", { willReadFrequently: true });
   tctx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
   const data = tctx.getImageData(0, 0, tempCanvas.width, tempCanvas.height).data;
+
   let maxBright = 0, bestX = null, bestY = null;
   const r2 = r * r, step = 2;
+
   for (let y = Math.max(0, cy - r); y < Math.min(tempCanvas.height, cy + r); y += step) {
     for (let x = Math.max(0, cx - r); x < Math.min(tempCanvas.width, cx + r); x += step) {
       const dx = x - cx, dy = y - cy;
@@ -709,5 +747,207 @@ function setupCalibration() {
   const container = document.getElementById("camContainer");
   container.addEventListener("click", (e) => {
     if (!camActive) return;
-    if (camPreviewHidden) { toggleCamPreview(); return; }
-    if (calib
+
+    // Si el preview está oculto, solo lo mostramos
+    if (camPreviewHidden) {
+      toggleCamPreview();
+      return;
+    }
+
+    // Si ya está calibrado, tocar oculta el preview
+    if (calibrated) {
+      toggleCamPreview();
+      return;
+    }
+
+    // Calibrar
+    const rect = overlay.getBoundingClientRect();
+    const scaleX = overlay.width / rect.width;
+    const scaleY = overlay.height / rect.height;
+    zoneX = (e.clientX - rect.left) * scaleX;
+    zoneY = (e.clientY - rect.top) * scaleY;
+    calibrated = true;
+    isNutVisible = false;
+    lastCountTime = 0;
+    lastSeenTime = 0;
+    zoneRadius = Math.min(overlay.width, overlay.height) * 0.18;
+    document.getElementById("camInfo").textContent = "Zona lista ✓";
+    document.getElementById("status").textContent = "Detectando vueltas";
+  });
+}
+
+/* =========================================================
+   HISTORIAL
+========================================================= */
+const STORAGE_KEY = "bobinado_historial";
+
+function getHistory() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+  catch (e) { return []; }
+}
+function saveHistory(list) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+}
+function formatDate(d = new Date()) {
+  const day = String(d.getDate()).padStart(2,"0");
+  const month = String(d.getMonth()+1).padStart(2,"0");
+  const year = d.getFullYear();
+  const hours = String(d.getHours()).padStart(2,"0");
+  const mins = String(d.getMinutes()).padStart(2,"0");
+  return { short: `${day}/${month}`, full: `${day}/${month}/${year} ${hours}:${mins}`, iso: d.toISOString() };
+}
+
+function saveCurrentCount() {
+  if (count === 0) { showToast("Nada para guardar"); return; }
+  const list = getHistory();
+  const fecha = formatDate();
+  list.unshift({ id: Date.now(), count, dateShort: fecha.short, dateFull: fecha.full, timestamp: fecha.iso });
+  if (list.length > 50) list.length = 50;
+  saveHistory(list);
+  showToast(`Guardado: ${count} (${fecha.short})`);
+  renderHistory();
+}
+
+function loadSave(id) {
+  const item = getHistory().find(x => x.id === id);
+  if (!item) return;
+  count = item.count;
+  document.getElementById("count").textContent = count;
+  isNutVisible = false;
+  lastCountTime = 0;
+  lastSeenTime = 0;
+  closeHistoryModal();
+  showToast(`Cargado: ${item.count} del ${item.dateShort}`);
+}
+
+function deleteSave(id) {
+  saveHistory(getHistory().filter(x => x.id !== id));
+  renderHistory();
+}
+
+function renderHistory() {
+  const list = getHistory();
+  const container = document.getElementById("historyList");
+  if (list.length === 0) {
+    container.innerHTML = `<div class="empty-history">Sin guardados aún</div>`;
+    return;
+  }
+  container.innerHTML = list.map(item => `
+    <div class="save-item">
+      <div>
+        <div class="save-item-date">Vueltas del ${item.dateShort}</div>
+        <div class="save-item-count">${item.count}</div>
+        <div class="save-item-date" style="font-size:11px">${item.dateFull}</div>
+      </div>
+      <div class="save-item-actions">
+        <button class="btn-load" onclick="loadSave(${item.id})">Cargar</button>
+        <button class="btn-delete" onclick="deleteSave(${item.id})">×</button>
+      </div>
+    </div>
+  `).join("");
+}
+
+function openHistoryModal() {
+  renderHistory();
+  document.getElementById("historyModal").classList.add("active");
+}
+function closeHistoryModal() {
+  document.getElementById("historyModal").classList.remove("active");
+}
+function showToast(msg) {
+  const toast = document.getElementById("saveToast");
+  toast.textContent = msg;
+  toast.classList.add("show");
+  setTimeout(() => toast.classList.remove("show"), 2200);
+}
+
+/* =========================================================
+   UI
+========================================================= */
+function updateStatus() {
+  const parts = [];
+  if (voiceActive) parts.push("Voz");
+  if (camActive) parts.push(calibrated ? "Cámara ON" : "Calibrar cámara");
+  document.getElementById("status").textContent = parts.length ? parts.join(" + ") : "Listo";
+  document.getElementById("modeBadge").textContent = parts.length ? parts.join(" · ") : "Listo";
+}
+
+/* =========================================================
+   EVENTOS
+========================================================= */
+document.getElementById("start").onclick = () => {
+  if (!rec) return;
+  if (voiceActive) { voiceActive = false; rec.stop(); }
+  else { try { rec.start(); } catch(e){} }
+};
+
+document.getElementById("reset").onclick = resetCount;
+document.getElementById("camBtn").onclick = toggleCamera;
+document.getElementById("switchCamBtn").onclick = () => {
+  startCamera(currentFacingMode === "user" ? "environment" : "user");
+};
+document.getElementById("calibrateBtn").onclick = () => {
+  document.getElementById("camInfo").textContent = "Tocá donde aparece la tuerca";
+  calibrated = false;
+  zoneX = zoneY = null;
+  if (camPreviewHidden) toggleCamPreview();
+};
+
+document.getElementById("plusBtn").onclick = () => incrementCount();
+document.getElementById("minusBtn").onclick = () => {
+  if (count > 0) {
+    count--;
+    document.getElementById("count").textContent = count;
+  }
+};
+
+document.getElementById("saveBtn").onclick = openHistoryModal;
+document.getElementById("closeModal").onclick = closeHistoryModal;
+document.getElementById("historyModal").onclick = (e) => {
+  if (e.target.id === "historyModal") closeHistoryModal();
+};
+
+// Botón guardar dentro del modal
+(function () {
+  const header = document.querySelector(".modal-header");
+  const btn = document.createElement("button");
+  btn.textContent = "Guardar";
+  btn.style.cssText = "border:none;border-radius:8px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer;background:var(--accent);color:var(--accent-text);margin-right:auto;";
+  btn.onclick = saveCurrentCount;
+  header.insertBefore(btn, header.children[1]);
+})();
+
+/* Temas */
+const THEMES = ["theme-green","theme-gray","theme-blue","theme-red"];
+let currentThemeIndex = 0;
+function applyTheme(t) {
+  document.body.classList.remove(...THEMES);
+  document.body.classList.add(t);
+  localStorage.setItem("bobinado_theme", t);
+}
+document.getElementById("themeBtn").onclick = () => {
+  currentThemeIndex = (currentThemeIndex + 1) % THEMES.length;
+  applyTheme(THEMES[currentThemeIndex]);
+};
+(function () {
+  const saved = localStorage.getItem("bobinado_theme");
+  if (saved && THEMES.includes(saved)) {
+    currentThemeIndex = THEMES.indexOf(saved);
+    applyTheme(saved);
+  } else applyTheme("theme-green");
+})();
+
+/* =========================================================
+   INICIO
+========================================================= */
+initVoice();
+setupCalibration();
+updateStatus();
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("./sw.js").catch(console.error);
+}
+</script>
+
+</body>
+</html>
