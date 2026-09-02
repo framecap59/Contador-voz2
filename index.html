@@ -1,104 +1,115 @@
-<!DOCTYPE html>
+      <!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Contador por voz</title>
+
+<title>Contador</title>
 
 <style>
+
+*{
+  box-sizing:border-box;
+}
+
 body{
   margin:0;
   min-height:100vh;
-  display:grid;
-  place-items:center;
-  background:#111827;
+  background:#000;
   color:#fff;
-  font-family:Arial,sans-serif
+  font-family:Arial,sans-serif;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  padding:20px;
 }
 
-.card{
-  width:min(92vw,520px);
-  padding:28px;
-  border-radius:24px;
-  background:#1f2937;
-  text-align:center
-}
-
-h1{
-  margin:0 0 10px
-}
-
-.count{
-  font-size:110px;
+#count{
+  font-size:150px;
   font-weight:bold;
-  margin:20px 0
+  line-height:1;
+  margin-bottom:45px;
+  text-align:center;
+}
+
+.buttons{
+  display:flex;
+  gap:12px;
+  margin-bottom:25px;
 }
 
 button{
-  padding:14px 20px;
-  margin:5px;
   border:0;
-  border-radius:12px;
-  font-size:17px;
-  font-weight:bold
+  border-radius:14px;
+  padding:16px 24px;
+  font-size:18px;
+  font-weight:bold;
+  cursor:pointer;
 }
 
 #start{
-  background:#22c55e
+  background:#22c55e;
+  color:#000;
 }
 
 #reset{
-  background:#374151;
-  color:white
+  background:#333;
+  color:#fff;
 }
 
 #heard{
-  margin:20px 0;
-  padding:12px;
-  background:#111827;
-  border-radius:10px;
-  color:#d1d5db;
-  min-height:24px
+  width:min(90vw,500px);
+  min-height:48px;
+  padding:14px;
+  border-radius:12px;
+  background:#151515;
+  color:#aaa;
+  text-align:center;
+  font-size:16px;
 }
 
 #status{
+  min-height:24px;
+  margin-bottom:12px;
   color:#86efac;
-  min-height:24px
+  text-align:center;
 }
+
 </style>
 </head>
 
 <body>
 
-<div class="card">
-
-<h1>🎤 Contador por voz</h1>
-
-<div id="count" class="count">0</div>
+<div id="count">0</div>
 
 <div id="status">Listo</div>
+
+<div class="buttons">
+
+<button id="start">Empezar</button>
+
+<button id="reset">Reiniciar</button>
+
+</div>
 
 <div id="heard">
 Lo que escucho aparecerá acá…
 </div>
 
-<button id="start">🎙️ Empezar</button>
-<button id="reset">↺ Reiniciar</button>
-
-</div>
 
 <script>
 
-let count = 0;
-let active = false;
+let count=0;
+let active=false;
 let rec;
 
 
-/* ==========================================
-   CONVERTIR NÚMEROS DEL 0 AL 800 A PALABRAS
-========================================== */
+/* =========================================
+   NÚMEROS DEL 0 AL 800
+========================================= */
 
-const unidades = [
+const unidades=[
   "cero",
   "uno",
   "dos",
@@ -111,7 +122,7 @@ const unidades = [
   "nueve"
 ];
 
-const especiales = {
+const especiales={
   10:"diez",
   11:"once",
   12:"doce",
@@ -124,7 +135,7 @@ const especiales = {
   19:"diecinueve"
 };
 
-const decenas = {
+const decenas={
   20:"veinte",
   30:"treinta",
   40:"cuarenta",
@@ -135,7 +146,7 @@ const decenas = {
   90:"noventa"
 };
 
-const centenas = {
+const centenas={
   100:"cien",
   200:"doscientos",
   300:"trescientos",
@@ -147,9 +158,9 @@ const centenas = {
 };
 
 
-/* ==========================================
+/* =========================================
    NORMALIZAR TEXTO
-========================================== */
+========================================= */
 
 function normal(text){
 
@@ -164,264 +175,202 @@ function normal(text){
 }
 
 
-/* ==========================================
-   CREAR TODAS LAS FORMAS DE LOS NÚMEROS
-   DEL 0 AL 800
-========================================== */
-
-const numberWords = {};
-
-
-/* Unidades */
-
-for(let i=0;i<=9;i++){
-  numberWords[unidades[i]] = i;
-}
-
-
-/* 10 - 19 */
-
-for(let i=10;i<=19;i++){
-  numberWords[especiales[i]] = i;
-}
-
-
-/* 20 */
-
-numberWords["veinte"] = 20;
-
-
-/* 21 - 29 */
-
-const veinti = [
-  "",
-  "uno",
-  "dos",
-  "tres",
-  "cuatro",
-  "cinco",
-  "seis",
-  "siete",
-  "ocho",
-  "nueve"
-];
-
-for(let i=21;i<=29;i++){
-  numberWords["veinti" + veinti[i-20]] = i;
-}
-
-
-/* Decenas 30 - 99 */
-
-for(let dec=30;dec<=90;dec+=10){
-
-  numberWords[decenas[dec]] = dec;
-
-  for(let u=1;u<=9;u++){
-
-    numberWords[
-      decenas[dec] + " y " + unidades[u]
-    ] = dec + u;
-
-  }
-}
-
-
-/* Centenas 100 - 800 */
-
-for(let cen=100;cen<=800;cen+=100){
-
-  numberWords[centenas[cen]] = cen;
-
-  if(cen === 800) break;
-
-  for(let resto=1;resto<=99;resto++){
-
-    let textoResto = convertirMenor100(resto);
-
-    let texto;
-
-    if(cen === 100){
-      texto = "ciento " + textoResto;
-    }else{
-      texto = centenas[cen] + " " + textoResto;
-    }
-
-    numberWords[texto] = cen + resto;
-
-  }
-}
-
-
-/* ==========================================
-   CONVERTIR 1 - 99 A PALABRAS
-========================================== */
+/* =========================================
+   CONVERTIR 1-99
+========================================= */
 
 function convertirMenor100(n){
 
-  if(n < 10){
+  if(n<10){
     return unidades[n];
   }
 
-  if(n >= 10 && n <= 19){
+  if(n<=19){
     return especiales[n];
   }
 
-  if(n === 20){
+  if(n===20){
     return "veinte";
   }
 
-  if(n >= 21 && n <= 29){
-    return "veinti" + veinti[n-20];
+  if(n>=21 && n<=29){
+
+    const nombres=[
+      "",
+      "uno",
+      "dos",
+      "tres",
+      "cuatro",
+      "cinco",
+      "seis",
+      "siete",
+      "ocho",
+      "nueve"
+    ];
+
+    return "veinti"+nombres[n-20];
   }
 
-  let dec = Math.floor(n/10)*10;
-  let u = n%10;
+  const dec=Math.floor(n/10)*10;
+  const u=n%10;
 
-  if(u === 0){
+  if(u===0){
     return decenas[dec];
   }
 
-  return decenas[dec] + " y " + unidades[u];
-}
-
-
-/* ==========================================
-   ACEPTAR TAMBIÉN FORMAS CON ACENTOS
-========================================== */
-
-for(const [word,value] of Object.entries(numberWords)){
-
-  const original = word;
-
-  const normalized = normal(original);
-
-  numberWords[normalized] = value;
+  return decenas[dec]+" y "+unidades[u];
 
 }
 
 
-/* ==========================================
-   BUSCAR UN NÚMERO DENTRO DE LO ESCUCHADO
-========================================== */
+/* =========================================
+   CREAR TODOS LOS NÚMEROS 0-800
+========================================= */
 
-function findNumber(text){
-
-  const clean = normal(text);
-
-  if(!clean) return null;
+const numberWords={};
 
 
-  /*
-   Primero buscamos frases largas.
-   Esto hace que "ciento veintisiete"
-   se interprete como 127 y no como
-   varios números separados.
-  */
+/* 0-9 */
 
-  const words = clean.split(/\s+/);
+for(let i=0;i<=9;i++){
+  numberWords[unidades[i]]=i;
+}
 
-  for(let length=5; length>=1; length--){
 
-    for(let start=0; start<=words.length-length; start++){
+/* 10-19 */
 
-      const phrase =
-        words.slice(start,start+length).join(" ");
+for(let i=10;i<=19;i++){
+  numberWords[especiales[i]]=i;
+}
 
-      if(numberWords[phrase] !== undefined){
 
-        return {
-          number:numberWords[phrase],
-          start:start,
-          length:length
-        };
+/* 20-99 */
 
-      }
+for(let i=20;i<=99;i++){
+  numberWords[convertirMenor100(i)]=i;
+}
+
+
+/* 100-800 */
+
+for(let cen=100;cen<=800;cen+=100){
+
+  numberWords[centenas[cen]]=cen;
+
+  if(cen===800) break;
+
+  for(let resto=1;resto<=99;resto++){
+
+    let texto;
+
+    if(cen===100){
+
+      texto="ciento "+convertirMenor100(resto);
+
+    }else{
+
+      texto=centenas[cen]+" "+convertirMenor100(resto);
 
     }
+
+    numberWords[texto]=cen+resto;
 
   }
 
-  return null;
 }
 
 
-/* ==========================================
-   PROCESAR LO QUE DIJO EL USUARIO
-========================================== */
+/* =========================================
+   AGREGAR VERSIONES SIN ACENTOS
+========================================= */
+
+for(const word of Object.keys(numberWords)){
+
+  numberWords[normal(word)]=numberWords[word];
+
+}
+
+
+/* =========================================
+   PROCESAR VOZ
+========================================= */
 
 function process(text){
 
-  const clean = normal(text);
+  const clean=normal(text);
 
-  document.getElementById("heard").textContent =
-    "Escuché: " + text.trim();
+  document.getElementById("heard").textContent=
+    "Escuché: "+text.trim();
 
 
-  /*
-   Buscamos números dentro de la frase.
-   Si decís:
-   "uno dos tres cuatrocientos veinte"
+  const words=clean.split(/\s+/);
 
-   detectará:
-   1
-   2
-   3
-   420
+  let i=0;
 
-   y sumará 4 al contador.
-  */
 
-  let words = clean.split(/\s+/);
+  while(i<words.length){
 
-  let i = 0;
+    let found=null;
 
-  while(i < words.length){
-
-    let found = null;
 
     /*
-     Probamos desde 5 palabras hasta 1.
+      PALABRAS PARA CONTAR UNA VUELTA
     */
 
-    for(let length=5;length>=1;length--){
+    if(
+      words[i]==="siguiente" ||
+      words[i]==="vuelta" ||
+      words[i]==="una"
+    ){
 
-      if(i+length > words.length) continue;
+      found={
+        length:1
+      };
 
-      const phrase =
-        words.slice(i,i+length).join(" ");
+    }
 
-      if(numberWords[phrase] !== undefined){
 
-        found = {
-          number:numberWords[phrase],
-          length:length
-        };
+    /*
+      BUSCAR NÚMEROS
+    */
 
-        break;
+    if(!found){
+
+      for(let length=5;length>=1;length--){
+
+        if(i+length>words.length) continue;
+
+        const phrase=
+          words.slice(i,i+length).join(" ");
+
+
+        if(numberWords[phrase]!==undefined){
+
+          found={
+            length:length
+          };
+
+          break;
+
+        }
 
       }
 
     }
 
 
+    /*
+      SUMAR
+    */
+
     if(found){
 
-      /*
-       Si el número está entre 0 y 800,
-       suma uno al contador.
-      */
+      count++;
 
-      if(found.number >= 0 && found.number <= 800){
+      document.getElementById("count").textContent=
+        count;
 
-        count++;
-
-        document.getElementById("count").textContent =
-          count;
-
-      }
-
-      i += found.length;
+      i+=found.length;
 
     }else{
 
@@ -434,50 +383,50 @@ function process(text){
 }
 
 
-/* ==========================================
+/* =========================================
    RECONOCIMIENTO DE VOZ
-========================================== */
+========================================= */
 
 function init(){
 
-  const SR =
+  const SR=
     window.SpeechRecognition ||
     window.webkitSpeechRecognition;
 
 
   if(!SR){
 
-    document.getElementById("status").textContent =
-      "Este navegador no admite reconocimiento de voz. Probá Chrome.";
+    document.getElementById("status").textContent=
+      "Usá Chrome para reconocer la voz.";
 
     return;
 
   }
 
 
-  rec = new SR();
+  rec=new SR();
 
-  rec.lang = "es-AR";
+  rec.lang="es-AR";
 
-  rec.continuous = true;
+  rec.continuous=true;
 
-  rec.interimResults = true;
+  rec.interimResults=true;
 
 
-  rec.onstart = ()=>{
+  rec.onstart=()=>{
 
-    active = true;
+    active=true;
 
-    document.getElementById("start").textContent =
-      "🛑 Detener";
+    document.getElementById("start").textContent=
+      "Detener";
 
-    document.getElementById("status").textContent =
+    document.getElementById("status").textContent=
       "Escuchando…";
 
   };
 
 
-  rec.onresult = e => {
+  rec.onresult=e=>{
 
     for(
       let i=e.resultIndex;
@@ -498,17 +447,17 @@ function init(){
   };
 
 
-  rec.onerror = e => {
+  rec.onerror=e=>{
 
-    document.getElementById("status").textContent =
-      e.error === "not-allowed"
+    document.getElementById("status").textContent=
+      e.error==="not-allowed"
       ? "⚠️ Permití el acceso al micrófono."
-      : "Error: " + e.error;
+      : "Error: "+e.error;
 
   };
 
 
-  rec.onend = ()=>{
+  rec.onend=()=>{
 
     if(active){
 
@@ -518,10 +467,10 @@ function init(){
 
     }else{
 
-      document.getElementById("start").textContent =
-        "🎙️ Empezar";
+      document.getElementById("start").textContent=
+        "Empezar";
 
-      document.getElementById("status").textContent =
+      document.getElementById("status").textContent=
         "Pausado";
 
     }
@@ -531,18 +480,18 @@ function init(){
 }
 
 
-/* ==========================================
-   BOTÓN EMPEZAR / DETENER
-========================================== */
+/* =========================================
+   EMPEZAR / DETENER
+========================================= */
 
-document.getElementById("start").onclick = ()=>{
+document.getElementById("start").onclick=()=>{
 
-  if(!rec) return;
+  if(!rec)return;
 
 
   if(active){
 
-    active = false;
+    active=false;
 
     rec.stop();
 
@@ -557,15 +506,15 @@ document.getElementById("start").onclick = ()=>{
 };
 
 
-/* ==========================================
-   BOTÓN REINICIAR
-========================================== */
+/* =========================================
+   REINICIAR
+========================================= */
 
-document.getElementById("reset").onclick = ()=>{
+document.getElementById("reset").onclick=()=>{
 
-  count = 0;
+  count=0;
 
-  document.getElementById("count").textContent =
+  document.getElementById("count").textContent=
     "0";
 
 };
