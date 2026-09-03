@@ -14,6 +14,15 @@
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
+  /* Evitar menú copiar/pegar/traducir al tocar botones */
+  button, .big-btn, .sec-btn, .icon-btn {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
   body {
     min-height: 100vh;
     min-height: 100dvh;
@@ -410,8 +419,8 @@
 
 <!-- Botones grandes +/- -->
 <div class="big-buttons">
-  <button class="big-btn" id="minusBtn">−</button>
-  <button class="big-btn" id="plusBtn">+</button>
+  <button class="big-btn" id="minusBtn" oncontextmenu="return false">−</button>
+  <button class="big-btn" id="plusBtn" oncontextmenu="return false">+</button>
 </div>
 
 <!-- Modal Historial -->
@@ -446,11 +455,15 @@ let animId = null;
 let zoneX = null, zoneY = null, zoneRadius = 70;
 let calibrated = false;
 
+// Plantilla del objetivo seleccionado (solo sigue esto)
+let targetTemplate = null;   // ImageData pequeño
+let targetSize = 28;         // tamaño de la plantilla
+let matchThreshold = 45;     // menor = más estricto (SAD promedio)
+
 let isNutVisible = false;
 let lastSeenTime = 0;
 let lastCountTime = 0;
-const COUNT_COOLDOWN_MS = 400;
-const BRIGHTNESS_THRESHOLD = 145;
+const COUNT_COOLDOWN_MS = 450;
 
 /* =========================================================
    NÚMEROS VOZ
@@ -548,7 +561,8 @@ function initVoice() {
   rec = new SR();
   rec.lang = "es-AR";
   rec.continuous = true;
-  rec.interimResults = true;
+  rec.interimResults = false; // menos ruido y menos falsos positivos
+  rec.maxAlternatives = 1;
 
   rec.onstart = () => {
     voiceActive = true;
@@ -630,6 +644,7 @@ async function startCamera(facing = currentFacingMode) {
     lastSeenTime = 0;
     calibrated = false;
     zoneX = zoneY = null;
+    targetTemplate = null;
     processFrame();
 
     const camName = facing === "user" ? "DELANTERA" : "TRASERA";
@@ -652,6 +667,7 @@ function stopCamera() {
   document.getElementById("switchCamBtn").style.display = "none";
   calibrated = false;
   zoneX = zoneY = null;
+  targetTemplate = null;
   isNutVisible = false;
   camPreviewHidden = false;
   updateStatus();
@@ -663,12 +679,98 @@ function toggleCamPreview() {
   document.getElementById("camContainer").classList.toggle("hidden-preview", camPreviewHidden);
 }
 
+function getVideoFrame() {
+  const c = document.createElement("canvas");
+  c.width = overlay.width;
+  c.height = overlay.height;
+  const cctx = c.getContext("2d", { willReadFrequently: true });
+  cctx.drawImage(video, 0, 0, c.width, c.height);
+  return cctx.getImageData(0, 0, c.width, c.height);
+}
+
+function captureTemplate(cx, cy) {
+  const frame = getVideoFrame();
+  const half = Math.floor(targetSize / 2);
+  const x0 = Math.max(0, Math.round(cx) - half);
+  const y0 = Math.max(0, Math.round(cy) - half);
+  const w = Math.min(targetSize, frame.width - x0);
+  const h = Math.min(targetSize, frame.height - y0);
+  if (w < 12 || h < 12) return null;
+
+  const data = new Uint8ClampedArray(w * h * 4);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const src = ((y0 + y) * frame.width + (x0 + x)) * 4;
+      const dst = (y * w + x) * 4;
+      data[dst] = frame.data[src];
+      data[dst + 1] = frame.data[src + 1];
+      data[dst + 2] = frame.data[src + 2];
+      data[dst + 3] = 255;
+    }
+  }
+  return { data, width: w, height: h };
+}
+
+// Busca la plantilla solo dentro de la zona (no cualquier brillo)
+function findTargetInZone(cx, cy, r) {
+  if (!targetTemplate) return null;
+
+  const frame = getVideoFrame();
+  const tw = targetTemplate.width;
+  const th = targetTemplate.height;
+  const halfW = Math.floor(tw / 2);
+  const halfH = Math.floor(th / 2);
+  const r2 = r * r;
+  const step = 3; // más rápido en el celular
+
+  let bestScore = Infinity;
+  let bestX = null, bestY = null;
+
+  const yMin = Math.max(halfH, Math.floor(cy - r));
+  const yMax = Math.min(frame.height - halfH, Math.ceil(cy + r));
+  const xMin = Math.max(halfW, Math.floor(cx - r));
+  const xMax = Math.min(frame.width - halfW, Math.ceil(cx + r));
+
+  for (let y = yMin; y < yMax; y += step) {
+    for (let x = xMin; x < xMax; x += step) {
+      const dx = x - cx, dy = y - cy;
+      if (dx * dx + dy * dy > r2) continue;
+
+      // SAD promedio (diferencia de color)
+      let sum = 0;
+      let n = 0;
+      for (let ty = 0; ty < th; ty += 2) {
+        for (let tx = 0; tx < tw; tx += 2) {
+          const fx = x - halfW + tx;
+          const fy = y - halfH + ty;
+          const fi = (fy * frame.width + fx) * 4;
+          const ti = (ty * tw + tx) * 4;
+          sum += Math.abs(frame.data[fi] - targetTemplate.data[ti]);
+          sum += Math.abs(frame.data[fi + 1] - targetTemplate.data[ti + 1]);
+          sum += Math.abs(frame.data[fi + 2] - targetTemplate.data[ti + 2]);
+          n += 3;
+        }
+      }
+      const score = sum / n;
+      if (score < bestScore) {
+        bestScore = score;
+        bestX = x;
+        bestY = y;
+      }
+    }
+  }
+
+  if (bestX === null || bestScore > matchThreshold) return null;
+  return { x: bestX, y: bestY, score: bestScore };
+}
+
 function processFrame() {
   if (!camActive) return;
   const now = performance.now();
   ctx.clearRect(0, 0, overlay.width, overlay.height);
 
-  if (calibrated && zoneX !== null) {
+  if (calibrated && zoneX !== null && targetTemplate) {
+    // Zona de búsqueda
     ctx.beginPath();
     ctx.arc(zoneX, zoneY, zoneRadius, 0, Math.PI * 2);
     ctx.strokeStyle = isNutVisible ? "rgba(34,197,94,0.9)" : "rgba(239,68,68,0.7)";
@@ -680,12 +782,12 @@ function processFrame() {
     ctx.fillStyle = isNutVisible ? "#22c55e" : "#ef4444";
     ctx.fill();
 
-    const bright = findBrightestInZone(zoneX, zoneY, zoneRadius);
-    const currentlyVisible = bright !== null;
+    const found = findTargetInZone(zoneX, zoneY, zoneRadius);
+    const currentlyVisible = found !== null;
 
     if (currentlyVisible) {
       ctx.beginPath();
-      ctx.arc(bright.x, bright.y, 9, 0, Math.PI * 2);
+      ctx.arc(found.x, found.y, 10, 0, Math.PI * 2);
       ctx.fillStyle = "#f59e0b";
       ctx.fill();
       ctx.strokeStyle = "#fff";
@@ -693,6 +795,7 @@ function processFrame() {
       ctx.stroke();
     }
 
+    // Aparición = 1 vuelta
     if (currentlyVisible) {
       if (!isNutVisible) {
         if (now - lastCountTime > COUNT_COOLDOWN_MS) {
@@ -701,46 +804,20 @@ function processFrame() {
           document.getElementById("camInfo").textContent = `✓ Vuelta | ${count}`;
         }
       } else if (now - lastCountTime > 400) {
-        document.getElementById("camInfo").textContent = `Visible | ${count}`;
+        document.getElementById("camInfo").textContent = `Objetivo OK | ${count}`;
       }
       isNutVisible = true;
       lastSeenTime = now;
     } else {
-      if (now - lastSeenTime > 180) {
+      if (now - lastSeenTime > 200) {
         isNutVisible = false;
-        document.getElementById("camInfo").textContent = `Esperando... | ${count}`;
+        document.getElementById("camInfo").textContent = `Esperando objetivo... | ${count}`;
       }
     }
   } else {
-    document.getElementById("camInfo").textContent = "Tocá donde aparece la tuerca";
+    document.getElementById("camInfo").textContent = "Tocá EXACTAMENTE la tuerca para fijarla";
   }
   animId = requestAnimationFrame(processFrame);
-}
-
-function findBrightestInZone(cx, cy, r) {
-  const tempCanvas = document.createElement("canvas");
-  tempCanvas.width = overlay.width;
-  tempCanvas.height = overlay.height;
-  const tctx = tempCanvas.getContext("2d", { willReadFrequently: true });
-  tctx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
-  const data = tctx.getImageData(0, 0, tempCanvas.width, tempCanvas.height).data;
-
-  let maxBright = 0, bestX = null, bestY = null;
-  const r2 = r * r, step = 2;
-
-  for (let y = Math.max(0, cy - r); y < Math.min(tempCanvas.height, cy + r); y += step) {
-    for (let x = Math.max(0, cx - r); x < Math.min(tempCanvas.width, cx + r); x += step) {
-      const dx = x - cx, dy = y - cy;
-      if (dx*dx + dy*dy > r2) continue;
-      const idx = (Math.floor(y) * tempCanvas.width + Math.floor(x)) * 4;
-      const bright = data[idx]*0.299 + data[idx+1]*0.587 + data[idx+2]*0.114;
-      if (bright > maxBright && bright > BRIGHTNESS_THRESHOLD) {
-        maxBright = bright;
-        bestX = x; bestY = y;
-      }
-    }
-  }
-  return bestX === null ? null : { x: bestX, y: bestY };
 }
 
 function setupCalibration() {
@@ -748,31 +825,37 @@ function setupCalibration() {
   container.addEventListener("click", (e) => {
     if (!camActive) return;
 
-    // Si el preview está oculto, solo lo mostramos
     if (camPreviewHidden) {
       toggleCamPreview();
       return;
     }
 
-    // Si ya está calibrado, tocar oculta el preview
     if (calibrated) {
       toggleCamPreview();
       return;
     }
 
-    // Calibrar
+    // Fijar objetivo: captura plantilla del punto tocado
     const rect = overlay.getBoundingClientRect();
     const scaleX = overlay.width / rect.width;
     const scaleY = overlay.height / rect.height;
     zoneX = (e.clientX - rect.left) * scaleX;
     zoneY = (e.clientY - rect.top) * scaleY;
+
+    targetTemplate = captureTemplate(zoneX, zoneY);
+    if (!targetTemplate) {
+      document.getElementById("camInfo").textContent = "No se pudo capturar, tocá de nuevo";
+      return;
+    }
+
     calibrated = true;
     isNutVisible = false;
     lastCountTime = 0;
     lastSeenTime = 0;
-    zoneRadius = Math.min(overlay.width, overlay.height) * 0.18;
-    document.getElementById("camInfo").textContent = "Zona lista ✓";
-    document.getElementById("status").textContent = "Detectando vueltas";
+    zoneRadius = Math.min(overlay.width, overlay.height) * 0.22;
+
+    document.getElementById("camInfo").textContent = "Objetivo fijado ✓";
+    document.getElementById("status").textContent = "Siguiendo solo ese objetivo";
   });
 }
 
@@ -887,9 +970,11 @@ document.getElementById("switchCamBtn").onclick = () => {
   startCamera(currentFacingMode === "user" ? "environment" : "user");
 };
 document.getElementById("calibrateBtn").onclick = () => {
-  document.getElementById("camInfo").textContent = "Tocá donde aparece la tuerca";
+  document.getElementById("camInfo").textContent = "Tocá EXACTAMENTE la tuerca para fijarla";
   calibrated = false;
   zoneX = zoneY = null;
+  targetTemplate = null;
+  isNutVisible = false;
   if (camPreviewHidden) toggleCamPreview();
 };
 
