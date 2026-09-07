@@ -1,0 +1,1335 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#000000">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Contador Bobinado">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Contador Bobinado</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* Evitar menú copiar/pegar/traducir al tocar botones */
+  button, .big-btn, .sec-btn, .icon-btn {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  body {
+    min-height: 100vh;
+    min-height: 100dvh;
+    background: #0a0a0a;
+    color: #f0f0f0;
+    font-family: system-ui, -apple-system, Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+  }
+
+  /* ===== TEMAS ===== */
+  :root {
+    --accent: #22c55e;
+    --accent-text: #000;
+    --btn-bg: #1a1a1a;
+    --btn-border: #333;
+    --btn-text: #ddd;
+    --big-btn: #1f1f1f;
+  }
+  body.theme-green {
+    --accent: #22c55e; --accent-text: #000;
+    --btn-bg: #0f1f14; --btn-border: #166534; --btn-text: #bbf7d0;
+    --big-btn: #14532d;
+  }
+  body.theme-gray {
+    --accent: #a3a3a3; --accent-text: #000;
+    --btn-bg: #1a1a1a; --btn-border: #404040; --btn-text: #e5e5e5;
+    --big-btn: #262626;
+  }
+  body.theme-blue {
+    --accent: #3b82f6; --accent-text: #fff;
+    --btn-bg: #0f172a; --btn-border: #1e3a5f; --btn-text: #bfdbfe;
+    --big-btn: #1e3a5f;
+  }
+  body.theme-red {
+    --accent: #ef4444; --accent-text: #fff;
+    --btn-bg: #1c1010; --btn-border: #7f1d1d; --btn-text: #fecaca;
+    --big-btn: #450a0a;
+  }
+
+  /* ===== LAYOUT PRINCIPAL ===== */
+  .top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px 0;
+    gap: 8px;
+  }
+  .top-bar-left, .top-bar-right {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .icon-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    border: 1px solid var(--btn-border);
+    background: var(--btn-bg);
+    color: var(--btn-text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+  }
+  .icon-btn svg { width: 18px; height: 18px; }
+  .icon-btn:active { transform: scale(0.94); }
+
+  .mode-badge {
+    font-size: 11px;
+    color: #777;
+    background: transparent;
+    padding: 4px 8px;
+    border-radius: 8px;
+    border: 1px solid #2a2a2a;
+  }
+
+  /* Número grande centrado */
+  .count-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 16px;
+    min-height: 0;
+  }
+
+  #count {
+    font-size: clamp(100px, 32vw, 200px);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -4px;
+    color: #f5f5f5;
+    transition: transform 0.08s;
+  }
+
+  #status {
+    margin-top: 10px;
+    font-size: 14px;
+    color: #666;
+    text-align: center;
+    min-height: 20px;
+  }
+
+  #heard {
+    font-size: 12px;
+    color: #555;
+    text-align: center;
+    max-width: 90%;
+    margin-top: 6px;
+    min-height: 18px;
+  }
+
+  /* Cámara */
+  .cam-wrapper {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    padding: 0 16px;
+    margin-bottom: 8px;
+  }
+
+  .cam-container {
+    position: relative;
+    width: min(55vw, 220px);
+    aspect-ratio: 4/3;
+    background: #111;
+    border-radius: 14px;
+    overflow: hidden;
+    display: none;
+    border: 2px solid #333;
+    cursor: pointer;
+  }
+  .cam-container.active { display: block; }
+  .cam-container.hidden-preview {
+    width: 48px;
+    height: 48px;
+    aspect-ratio: 1;
+    border-radius: 50%;
+  }
+  .cam-container.hidden-preview video,
+  .cam-container.hidden-preview canvas,
+  .cam-container.hidden-preview #camInfo {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .cam-container.hidden-preview::after {
+    content: "CAM";
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  #video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  #overlay {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+  #camInfo {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    text-align: center;
+    font-size: 11px;
+    color: #fff;
+    background: rgba(0,0,0,0.55);
+    padding: 3px 4px;
+  }
+
+  /* Botones secundarios */
+  .secondary-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    padding: 0 12px 10px;
+  }
+
+  .sec-btn {
+    border: 1px solid var(--btn-border);
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    background: var(--btn-bg);
+    color: var(--btn-text);
+    cursor: pointer;
+    min-width: 88px;
+  }
+  .sec-btn:active { transform: scale(0.96); }
+  .sec-btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-text);
+  }
+  #switchCamBtn, #calibrateBtn { display: none; }
+
+  /* Botones grandes +/- abajo */
+  .big-buttons {
+    display: flex;
+    width: 100%;
+    padding: 0 12px 12px;
+    margin-top: auto;
+    gap: 10px;
+  }
+  .big-btn {
+    flex: 1;
+    height: 64px;
+    border: 1px solid var(--btn-border);
+    border-radius: 14px;
+    font-size: 30px;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--btn-text);
+    background: var(--btn-bg);
+    transition: filter 0.1s, transform 0.08s;
+  }
+  .big-btn:active { transform: scale(0.97); }
+  #minusBtn {
+    color: var(--btn-text);
+  }
+  #plusBtn {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-text);
+  }
+
+  .watermark {
+    font-size: 11px;
+    color: #666;
+    opacity: 0.6;
+    letter-spacing: 0.3px;
+    padding: 0 2px;
+    white-space: nowrap;
+  }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 16px;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal {
+    background: #111;
+    border: 1px solid #333;
+    border-radius: 16px;
+    width: min(94vw, 380px);
+    max-height: 80vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .modal-header {
+    padding: 14px 16px;
+    border-bottom: 1px solid #333;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 700;
+    gap: 8px;
+  }
+  .modal-close {
+    background: transparent;
+    border: none;
+    color: #888;
+    font-size: 22px;
+    cursor: pointer;
+    padding: 4px 8px;
+  }
+  .modal-body {
+    padding: 12px;
+    overflow-y: auto;
+    flex: 1;
+  }
+  .save-item {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+  }
+  .save-item-date { font-size: 13px; color: #888; }
+  .save-item-count { font-size: 20px; font-weight: 700; }
+  .save-item-actions { display: flex; gap: 6px; }
+  .save-item-actions button {
+    border: none;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .btn-load { background: var(--accent); color: var(--accent-text); }
+  .btn-delete { background: #333; color: #f87171; }
+  .empty-history {
+    text-align: center;
+    color: #555;
+    padding: 30px 10px;
+    font-size: 14px;
+  }
+  .save-toast {
+    position: fixed;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--accent);
+    color: var(--accent-text);
+    padding: 10px 20px;
+    border-radius: 30px;
+    font-weight: 700;
+    font-size: 14px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    z-index: 200;
+    pointer-events: none;
+  }
+  .save-toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- Barra superior -->
+<div class="top-bar">
+  <div class="top-bar-left">
+    <button class="icon-btn" id="saveBtn" title="Historial">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+        <polyline points="17 21 17 13 7 13 7 21"/>
+        <polyline points="7 3 7 8 15 8"/>
+      </svg>
+    </button>
+    <button class="icon-btn" id="themeBtn" title="Color">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="5"/>
+        <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+      </svg>
+    </button>
+    <span class="watermark">by quino</span>
+  </div>
+  <div class="mode-badge" id="modeBadge">Listo</div>
+  <div class="top-bar-right">
+    <button class="icon-btn" id="reset" title="Reiniciar" style="font-size:18px;">↺</button>
+  </div>
+</div>
+
+<!-- Número grande -->
+<div class="count-area">
+  <div id="count">0</div>
+  <div id="status">Listo</div>
+  <div id="heard"></div>
+</div>
+
+<!-- Cámara (tocar para ocultar/mostrar) -->
+<div class="cam-wrapper">
+  <div class="cam-container" id="camContainer" title="Tocar para ocultar/mostrar">
+    <video id="video" playsinline muted autoplay></video>
+    <canvas id="overlay"></canvas>
+    <div id="camInfo">Tocá para calibrar la zona</div>
+  </div>
+</div>
+
+<!-- Botones secundarios -->
+<div class="secondary-row">
+  <button class="sec-btn primary" id="start">Voz</button>
+  <button class="sec-btn" id="camBtn">Cámara</button>
+  <button class="sec-btn" id="switchCamBtn">Cambiar cam</button>
+  <button class="sec-btn" id="calibrateBtn">Calibrar</button>
+</div>
+
+<!-- Botones grandes +/- -->
+<div class="big-buttons">
+  <button class="big-btn" id="minusBtn" oncontextmenu="return false">−</button>
+  <button class="big-btn" id="plusBtn" oncontextmenu="return false">+</button>
+</div>
+
+<!-- Modal Historial -->
+<div class="modal-overlay" id="historyModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span>Historial</span>
+      <button class="modal-close" id="closeModal">×</button>
+    </div>
+    <div class="modal-body" id="historyList"></div>
+  </div>
+</div>
+
+<div class="save-toast" id="saveToast">Guardado ✓</div>
+
+<script>
+/* =========================================================
+   VARIABLES
+========================================================= */
+let count = 0;
+let voiceActive = false;
+let camActive = false;
+let camPreviewHidden = false;
+let rec = null;
+
+let stream = null;
+let video = null;
+let overlay = null;
+let ctx = null;
+let animId = null;
+
+let zoneX = null, zoneY = null, zoneRadius = 58;
+let calibrated = false;
+
+/*
+ * DETECCIÓN DE GIRO
+ * -----------------
+ * La versión anterior buscaba si la zona estaba "ocupada" o "vacía".
+ * Eso sirve para detectar una pieza que entra y sale, pero no para una
+ * tuerca/tornillo que gira en el mismo lugar.
+ *
+ * Ahora usamos una "huella circular": tomamos varios puntos alrededor
+ * del centro de la referencia y comparamos la huella de cada frame con
+ * la anterior. Si la huella se desplazó angularmente, estimamos cuántos
+ * grados giró. Cuando acumula ~360°, sumamos una vuelta.
+ */
+let prevSignature = null;
+let rotationAngle = 0;
+let lastRotationTime = 0;
+let trackingReadyFrames = 0;
+let rotationDirection = 0;
+let confidence = 0;
+
+const ANGLE_SAMPLES = 72;
+const RADIAL_SAMPLES = 4;
+const INNER_RADIUS = 10;
+const OUTER_RADIUS_FACTOR = 0.72;
+const MAX_SHIFT = 10;
+const MIN_SHIFT_DEG = 1.2;
+const MIN_CORRELATION = 0.56;
+const MIN_CORRELATION_GAP = 0.025;
+const FULL_TURN_DEG = 360;
+const MAX_FRAME_STEP_DEG = 18;
+const MAX_TRACK_SPEED_DEG_S = 900;
+
+let frameSkip = 0;
+let workCanvas = null;
+let workCtx = null;
+
+/* =========================================================
+   NÚMEROS VOZ
+========================================================= */
+const unidades = ["cero","uno","dos","tres","cuatro","cinco","seis","siete","ocho","nueve"];
+const especiales = {10:"diez",11:"once",12:"doce",13:"trece",14:"catorce",15:"quince",16:"dieciseis",17:"diecisiete",18:"dieciocho",19:"diecinueve"};
+const decenas = {20:"veinte",30:"treinta",40:"cuarenta",50:"cincuenta",60:"sesenta",70:"setenta",80:"ochenta",90:"noventa"};
+const centenas = {100:"cien",200:"doscientos",300:"trescientos",400:"cuatrocientos",500:"quinientos",600:"seiscientos",700:"setecientos",800:"ochocientos"};
+
+function normal(text) {
+  return text.toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .replace(/[.,!?¿¡]/g," ")
+    .replace(/\s+/g," ").trim();
+}
+
+function convertirMenor100(n) {
+  if (n < 10) return unidades[n];
+  if (n <= 19) return especiales[n];
+  if (n === 20) return "veinte";
+  if (n >= 21 && n <= 29) {
+    const nombres = ["","uno","dos","tres","cuatro","cinco","seis","siete","ocho","nueve"];
+    return "veinti" + nombres[n-20];
+  }
+  const dec = Math.floor(n/10)*10;
+  const u = n % 10;
+  if (u === 0) return decenas[dec];
+  return decenas[dec] + " y " + unidades[u];
+}
+
+const numberWords = {};
+for (let i = 0; i <= 9; i++) numberWords[unidades[i]] = i;
+for (let i = 10; i <= 19; i++) numberWords[especiales[i]] = i;
+for (let i = 20; i <= 99; i++) numberWords[convertirMenor100(i)] = i;
+for (let cen = 100; cen <= 800; cen += 100) {
+  numberWords[centenas[cen]] = cen;
+  if (cen === 800) break;
+  for (let resto = 1; resto <= 99; resto++) {
+    let texto = (cen === 100) ? "ciento " + convertirMenor100(resto) : centenas[cen] + " " + convertirMenor100(resto);
+    numberWords[texto] = cen + resto;
+  }
+}
+for (const word of Object.keys(numberWords)) {
+  numberWords[normal(word)] = numberWords[word];
+}
+
+/* =========================================================
+   VOZ
+========================================================= */
+function process(text) {
+  const clean = normal(text);
+  document.getElementById("heard").textContent = text.trim() ? "Escuché: " + text.trim() : "";
+
+  const words = clean.split(/\s+/);
+  let i = 0;
+  while (i < words.length) {
+    let found = null;
+    if (words[i] === "camara" || words[i] === "cámara") { toggleCamera(); i++; continue; }
+    if (words[i] === "reiniciar" || words[i] === "reset") { resetCount(); i++; continue; }
+    if (words[i] === "siguiente" || words[i] === "vuelta" || words[i] === "una") found = { length: 1 };
+    if (!found) {
+      for (let length = 5; length >= 1; length--) {
+        if (i + length > words.length) continue;
+        const phrase = words.slice(i, i + length).join(" ");
+        if (numberWords[phrase] !== undefined) { found = { length }; break; }
+      }
+    }
+    if (found) { incrementCount(); i += found.length; }
+    else i++;
+  }
+}
+
+function incrementCount() {
+  count++;
+  document.getElementById("count").textContent = count;
+  const el = document.getElementById("count");
+  el.style.transform = "scale(1.06)";
+  setTimeout(() => el.style.transform = "scale(1)", 80);
+}
+
+function resetCount() {
+  count = 0;
+  document.getElementById("count").textContent = "0";
+
+  if (typeof resetRotationTracking === "function") {
+    resetRotationTracking();
+  }
+}
+
+function initVoice() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    document.getElementById("status").textContent = "Usá Chrome para voz";
+    return;
+  }
+  rec = new SR();
+  rec.lang = "es-AR";
+  rec.continuous = true;
+  rec.interimResults = false; // menos ruido y menos falsos positivos
+  rec.maxAlternatives = 1;
+
+  rec.onstart = () => {
+    voiceActive = true;
+    document.getElementById("start").textContent = "Detener";
+    updateStatus();
+  };
+  rec.onresult = e => {
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) process(e.results[i][0].transcript);
+    }
+  };
+  rec.onerror = e => {
+    document.getElementById("status").textContent =
+      e.error === "not-allowed" ? "⚠️ Permití el micrófono" : "Error voz: " + e.error;
+  };
+  rec.onend = () => {
+    if (voiceActive) {
+      try { rec.start(); } catch (e) {}
+    } else {
+      document.getElementById("start").textContent = "Voz";
+      updateStatus();
+    }
+  };
+}
+
+/* =========================================================
+   CÁMARA
+========================================================= */
+async function toggleCamera() {
+  if (camActive) stopCamera();
+  else await startCamera();
+}
+
+/*
+ * Para el bobinador usamos la CÁMARA DELANTERA.
+ * La detección no intenta reconocer "360°" directamente:
+ * sigue una característica visual de la referencia y cuenta
+ * cuando esa característica completa un ciclo y vuelve a
+ * cruzar el mismo punto de referencia.
+ */
+let currentFacingMode = "user";
+
+/* ---------- Parámetros del detector ---------- */
+const DETECT_SIZE = 160;
+const DETECT_FPS_SKIP = 1;
+
+// Buscamos la característica en un anillo alrededor del centro.
+const RING_INNER = 0.18;
+const RING_OUTER = 0.88;
+
+// Característica clara: la referencia/tornillo blanco destaca
+// sobre la pieza roja y el fondo azul/gris.
+const BRIGHT_MIN = 145;
+const LOW_SAT_MAX = 105;
+
+// Calidad mínima de la característica encontrada.
+const MIN_FEATURE_SCORE = 1.35;
+const MAX_ANGLE_JUMP = 42;
+
+// Histéresis para contar un paso por la "puerta".
+const GATE_HALF_WIDTH = 16;
+const MIN_CYCLE_MS = 300;
+
+let workCanvas = null;
+let workCtx = null;
+
+let featureAngle = null;
+let previousFeatureAngle = null;
+let accumulatedAngle = 0;
+let lastFeatureTime = 0;
+let lastCountCycleTime = 0;
+let featureQuality = 0;
+let detectorReady = false;
+let lastFeature = null;
+
+function resetRotationTracking() {
+  featureAngle = null;
+  previousFeatureAngle = null;
+  accumulatedAngle = 0;
+  lastFeatureTime = 0;
+  lastCountCycleTime = 0;
+  featureQuality = 0;
+  detectorReady = false;
+  lastFeature = null;
+}
+
+async function startCamera(facing = currentFacingMode) {
+  if (stream) {
+    stream.getTracks().forEach(t => t.stop());
+    stream = null;
+  }
+
+  try {
+    let constraints = {
+      video: {
+        facingMode: { exact: facing },
+        width: { ideal: 640 },
+        height: { ideal: 480 }
+      },
+      audio: false
+    };
+
+    try {
+      stream = await navigator.mediaDevices.getUserMedia(constraints);
+    } catch (e) {
+      constraints.video.facingMode = { ideal: facing };
+      stream = await navigator.mediaDevices.getUserMedia(constraints);
+    }
+
+    currentFacingMode = facing;
+
+    video = document.getElementById("video");
+    overlay = document.getElementById("overlay");
+    ctx = overlay.getContext("2d");
+
+    video.srcObject = stream;
+    await video.play();
+
+    const resize = () => {
+      overlay.width = video.videoWidth || 640;
+      overlay.height = video.videoHeight || 480;
+      workCanvas = null;
+      workCtx = null;
+      resetRotationTracking();
+    };
+
+    video.onloadedmetadata = resize;
+    resize();
+
+    const container = document.getElementById("camContainer");
+    container.classList.add("active");
+    container.classList.remove("hidden-preview");
+    camPreviewHidden = false;
+
+    document.getElementById("calibrateBtn").style.display = "inline-block";
+    document.getElementById("switchCamBtn").style.display = "inline-block";
+
+    camActive = true;
+    calibrated = false;
+    zoneX = zoneY = null;
+    resetRotationTracking();
+
+    updateStatus();
+    processFrame();
+
+    const camName = facing === "user" ? "DELANTERA" : "TRASERA";
+    document.getElementById("status").textContent = "Cámara " + camName;
+  } catch (err) {
+    document.getElementById("status").textContent = "No se pudo abrir cámara";
+  }
+}
+
+function stopCamera() {
+  camActive = false;
+
+  if (animId) cancelAnimationFrame(animId);
+  animId = null;
+
+  if (stream) {
+    stream.getTracks().forEach(t => t.stop());
+    stream = null;
+  }
+
+  const container = document.getElementById("camContainer");
+  container.classList.remove("active", "hidden-preview");
+
+  document.getElementById("calibrateBtn").style.display = "none";
+  document.getElementById("switchCamBtn").style.display = "none";
+
+  calibrated = false;
+  zoneX = zoneY = null;
+  camPreviewHidden = false;
+  resetRotationTracking();
+
+  updateStatus();
+}
+
+function toggleCamPreview() {
+  if (!camActive) return;
+
+  camPreviewHidden = !camPreviewHidden;
+  document.getElementById("camContainer")
+    .classList.toggle("hidden-preview", camPreviewHidden);
+}
+
+function ensureWorkCanvas() {
+  if (!workCanvas ||
+      workCanvas.width !== DETECT_SIZE ||
+      workCanvas.height !== DETECT_SIZE) {
+    workCanvas = document.createElement("canvas");
+    workCanvas.width = DETECT_SIZE;
+    workCanvas.height = DETECT_SIZE;
+    workCtx = workCanvas.getContext("2d", {
+      willReadFrequently: true
+    });
+  }
+}
+
+function clamp(v, min, max) {
+  return Math.max(min, Math.min(max, v));
+}
+
+function normalizeAngle(a) {
+  while (a <= -180) a += 360;
+  while (a > 180) a -= 360;
+  return a;
+}
+
+function angleDifference(a, b) {
+  return normalizeAngle(a - b);
+}
+
+/*
+ * Busca la característica clara dentro de un anillo.
+ * En vez de usar un solo píxel, calcula pequeños "bloques"
+ * para que el detector sea menos sensible al ruido de la cámara.
+ */
+function detectReferenceFeature() {
+  ensureWorkCanvas();
+
+  workCtx.drawImage(
+    video,
+    0, 0,
+    workCanvas.width,
+    workCanvas.height
+  );
+
+  const img = workCtx.getImageData(
+    0, 0,
+    workCanvas.width,
+    workCanvas.height
+  );
+
+  const data = img.data;
+  const w = workCanvas.width;
+  const h = workCanvas.height;
+
+  const sx = w / overlay.width;
+  const sy = h / overlay.height;
+
+  const cx = zoneX * sx;
+  const cy = zoneY * sy;
+
+  const maxR = Math.min(w, h) * 0.46;
+  const innerR = maxR * RING_INNER;
+  const outerR = maxR * RING_OUTER;
+
+  /*
+   * Dividimos el anillo en sectores. En cada sector medimos
+   * cuánto "blanco/claridad" hay. La referencia suele producir
+   * un pico bastante claro respecto de la pieza roja.
+   */
+  const sectors = 72;
+  const sectorScore = new Float32Array(sectors);
+  const sectorWeight = new Float32Array(sectors);
+
+  const step = 2;
+
+  for (let y = 0; y < h; y += step) {
+    for (let x = 0; x < w; x += step) {
+      const dx = x - cx;
+      const dy = y - cy;
+      const r = Math.sqrt(dx * dx + dy * dy);
+
+      if (r < innerR || r > outerR) continue;
+
+      const i = (y * w + x) * 4;
+      const red = data[i];
+      const green = data[i + 1];
+      const blue = data[i + 2];
+
+      const maxC = Math.max(red, green, blue);
+      const minC = Math.min(red, green, blue);
+      const brightness = 0.299 * red + 0.587 * green + 0.114 * blue;
+      const saturation = maxC - minC;
+
+      /*
+       * Puntaje de característica:
+       * - brillo alto
+       * - saturación baja (blanco/gris)
+       * - un poco de margen para reflejos metálicos
+       */
+      let score = 0;
+
+      if (brightness >= BRIGHT_MIN && saturation <= LOW_SAT_MAX) {
+        score = ((brightness - BRIGHT_MIN) / 110) *
+                (1 - saturation / 150);
+        score = clamp(score, 0, 1);
+      }
+
+      if (score <= 0) continue;
+
+      let a = Math.atan2(dy, dx);
+      if (a < 0) a += Math.PI * 2;
+
+      const sector = Math.floor(a / (Math.PI * 2) * sectors);
+      sectorScore[sector] += score;
+      sectorWeight[sector] += 1;
+    }
+  }
+
+  let bestSector = -1;
+  let bestScore = 0;
+
+  for (let s = 0; s < sectors; s++) {
+    if (sectorWeight[s] === 0) continue;
+
+    const score = sectorScore[s] / sectorWeight[s];
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestSector = s;
+    }
+  }
+
+  /*
+   * No aceptamos cualquier reflejo.
+   * La referencia tiene que ser claramente mejor que un sector
+   * vacío promedio.
+   */
+  if (bestSector < 0 || bestScore < MIN_FEATURE_SCORE / 10) {
+    return null;
+  }
+
+  /*
+   * Refinamos el ángulo usando el sector ganador y sus vecinos.
+   */
+  let vx = 0;
+  let vy = 0;
+  let total = 0;
+
+  for (let d = -2; d <= 2; d++) {
+    const s = (bestSector + d + sectors) % sectors;
+    const score = sectorScore[s];
+
+    if (score <= 0) continue;
+
+    const a = (s + 0.5) / sectors * Math.PI * 2;
+    vx += Math.cos(a) * score;
+    vy += Math.sin(a) * score;
+    total += score;
+  }
+
+  if (total <= 0) return null;
+
+  const angle = Math.atan2(vy, vx) * 180 / Math.PI;
+
+  return {
+    angle,
+    score: bestScore,
+    sector: bestSector
+  };
+}
+
+/*
+ * Dibuja el centro, el anillo de seguimiento y la "puerta".
+ * La puerta es el punto que usamos para decidir cuándo pasó
+ * nuevamente la referencia.
+ */
+function drawCameraOverlay(feature) {
+  ctx.clearRect(0, 0, overlay.width, overlay.height);
+
+  if (zoneX === null || zoneY === null) return;
+
+  ctx.beginPath();
+  ctx.arc(zoneX, zoneY, zoneRadius, 0, Math.PI * 2);
+  ctx.strokeStyle =
+    detectorReady
+      ? "rgba(34,197,94,0.95)"
+      : "rgba(239,68,68,0.85)";
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  // Línea de "puerta" en la parte superior.
+  ctx.beginPath();
+  ctx.moveTo(zoneX, zoneY - zoneRadius);
+  ctx.lineTo(zoneX, zoneY - zoneRadius + 22);
+  ctx.strokeStyle = "rgba(255,255,255,0.9)";
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(zoneX, zoneY, 4, 0, Math.PI * 2);
+  ctx.fillStyle =
+    detectorReady ? "#22c55e" : "#ef4444";
+  ctx.fill();
+
+  // Marca visual de la característica detectada.
+  if (feature) {
+    const a = feature.angle * Math.PI / 180;
+    const r = zoneRadius * 0.70;
+
+    const fx = zoneX + Math.cos(a) * r;
+    const fy = zoneY + Math.sin(a) * r;
+
+    ctx.beginPath();
+    ctx.arc(fx, fy, 8, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(255,255,255,0.95)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(zoneX, zoneY);
+    ctx.lineTo(fx, fy);
+    ctx.strokeStyle = "rgba(255,255,255,0.55)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+}
+
+function processFrame() {
+  if (!camActive) return;
+
+  animId = requestAnimationFrame(processFrame);
+
+  frameSkip++;
+  if (frameSkip % DETECT_FPS_SKIP !== 0) return;
+
+  if (!overlay || !video.videoWidth || !video.videoHeight) return;
+
+  if (!calibrated || zoneX === null) {
+    drawCameraOverlay(null);
+    document.getElementById("camInfo").textContent =
+      "Tocá el centro del tornillo";
+    return;
+  }
+
+  const feature = detectReferenceFeature();
+  lastFeature = feature;
+  featureQuality = feature ? feature.score : 0;
+
+  drawCameraOverlay(feature);
+
+  if (!feature) {
+    document.getElementById("camInfo").textContent =
+      "No veo la referencia…";
+    return;
+  }
+
+  const now = performance.now();
+
+  // Primeras lecturas: estabilización.
+  if (featureAngle === null) {
+    featureAngle = feature.angle;
+    previousFeatureAngle = feature.angle;
+    lastFeatureTime = now;
+    detectorReady = false;
+
+    document.getElementById("camInfo").textContent =
+      "Referencia encontrada… mantené el celular quieto";
+
+    return;
+  }
+
+  const delta = angleDifference(feature.angle, previousFeatureAngle);
+  const dt = now - lastFeatureTime;
+
+  previousFeatureAngle = feature.angle;
+  lastFeatureTime = now;
+
+  /*
+   * Si la cámara pegó un salto o la referencia cambió demasiado,
+   * no sumamos movimiento.
+   */
+  if (Math.abs(delta) > MAX_ANGLE_JUMP) {
+    document.getElementById("camInfo").textContent =
+      "Reajustando referencia…";
+    return;
+  }
+
+  // Activamos el seguimiento después de unas lecturas válidas.
+  if (!detectorReady) {
+    featureAngle = feature.angle;
+    accumulatedAngle = 0;
+    detectorReady = true;
+
+    document.getElementById("camInfo").textContent =
+      "✓ Detectando giro";
+    return;
+  }
+
+  /*
+   * Acumulamos el desplazamiento angular.
+   * El signo conserva la dirección del giro.
+   */
+  accumulatedAngle += delta;
+  featureAngle = feature.angle;
+
+  /*
+   * Cuando la referencia completa un ciclo, la misma característica
+   * vuelve a pasar por la misma posición. Una vuelta = 360° acumulados.
+   */
+  if (Math.abs(accumulatedAngle) >= 360) {
+    const turns = Math.floor(Math.abs(accumulatedAngle) / 360);
+
+    if (now - lastCountCycleTime >= MIN_CYCLE_MS) {
+      for (let i = 0; i < turns; i++) {
+        incrementCount();
+      }
+
+      lastCountCycleTime = now;
+
+      accumulatedAngle =
+        accumulatedAngle % 360;
+
+      document.getElementById("camInfo").textContent =
+        `✓ ${turns} vuelta${turns > 1 ? "s" : ""} | ${count}`;
+    }
+  } else {
+    const progress = Math.round(Math.abs(accumulatedAngle));
+
+    document.getElementById("camInfo").textContent =
+      `Girando… ${progress}° / 360° | ${count}`;
+  }
+}
+
+function setupCalibration() {
+  const container = document.getElementById("camContainer");
+
+  container.addEventListener("click", (e) => {
+    if (!camActive) return;
+
+    if (camPreviewHidden) {
+      toggleCamPreview();
+      return;
+    }
+
+    // Si ya está calibrado, tocar la vista la oculta.
+    if (calibrated) {
+      toggleCamPreview();
+      return;
+    }
+
+    const rect = overlay.getBoundingClientRect();
+
+    const scaleX =
+      overlay.width / rect.width;
+
+    const scaleY =
+      overlay.height / rect.height;
+
+    zoneX =
+      (e.clientX - rect.left) * scaleX;
+
+    zoneY =
+      (e.clientY - rect.top) * scaleY;
+
+    /*
+     * La zona debe ser suficientemente grande para que la referencia
+     * pueda recorrer el anillo completo, pero no tanto como para
+     * incluir demasiados elementos del bobinador.
+     */
+    zoneRadius =
+      Math.min(overlay.width, overlay.height) * 0.16;
+
+    calibrated = true;
+    resetRotationTracking();
+
+    document.getElementById("camInfo").textContent =
+      "Buscando referencia…";
+
+    document.getElementById("status").textContent =
+      "Calibrando cámara…";
+  });
+}
+
+/* =========================================================
+   HISTORIAL
+========================================================= */
+const STORAGE_KEY = "bobinado_historial";
+
+function getHistory() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+  catch (e) { return []; }
+}
+function saveHistory(list) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+}
+function formatDate(d = new Date()) {
+  const day = String(d.getDate()).padStart(2,"0");
+  const month = String(d.getMonth()+1).padStart(2,"0");
+  const year = d.getFullYear();
+  const hours = String(d.getHours()).padStart(2,"0");
+  const mins = String(d.getMinutes()).padStart(2,"0");
+  return { short: `${day}/${month}`, full: `${day}/${month}/${year} ${hours}:${mins}`, iso: d.toISOString() };
+}
+
+function saveCurrentCount() {
+  if (count === 0) { showToast("Nada para guardar"); return; }
+  const list = getHistory();
+  const fecha = formatDate();
+  list.unshift({ id: Date.now(), count, dateShort: fecha.short, dateFull: fecha.full, timestamp: fecha.iso });
+  if (list.length > 50) list.length = 50;
+  saveHistory(list);
+  showToast(`Guardado: ${count} (${fecha.short})`);
+  renderHistory();
+}
+
+function loadSave(id) {
+  const item = getHistory().find(x => x.id === id);
+  if (!item) return;
+  count = item.count;
+  document.getElementById("count").textContent = count;
+  if (typeof resetRotationTracking === "function") {
+    resetRotationTracking();
+  }
+  closeHistoryModal();
+  showToast(`Cargado: ${item.count} del ${item.dateShort}`);
+}
+
+function deleteSave(id) {
+  saveHistory(getHistory().filter(x => x.id !== id));
+  renderHistory();
+}
+
+function renderHistory() {
+  const list = getHistory();
+  const container = document.getElementById("historyList");
+  if (list.length === 0) {
+    container.innerHTML = `<div class="empty-history">Sin guardados aún</div>`;
+    return;
+  }
+  container.innerHTML = list.map(item => `
+    <div class="save-item">
+      <div>
+        <div class="save-item-date">Vueltas del ${item.dateShort}</div>
+        <div class="save-item-count">${item.count}</div>
+        <div class="save-item-date" style="font-size:11px">${item.dateFull}</div>
+      </div>
+      <div class="save-item-actions">
+        <button class="btn-load" onclick="loadSave(${item.id})">Cargar</button>
+        <button class="btn-delete" onclick="deleteSave(${item.id})">×</button>
+      </div>
+    </div>
+  `).join("");
+}
+
+function openHistoryModal() {
+  renderHistory();
+  document.getElementById("historyModal").classList.add("active");
+}
+function closeHistoryModal() {
+  document.getElementById("historyModal").classList.remove("active");
+}
+function showToast(msg) {
+  const toast = document.getElementById("saveToast");
+  toast.textContent = msg;
+  toast.classList.add("show");
+  setTimeout(() => toast.classList.remove("show"), 2200);
+}
+
+/* =========================================================
+   UI
+========================================================= */
+function updateStatus() {
+  const parts = [];
+  if (voiceActive) parts.push("Voz");
+  if (camActive) parts.push(calibrated ? "Cámara ON" : "Calibrar cámara");
+  document.getElementById("status").textContent = parts.length ? parts.join(" + ") : "Listo";
+  document.getElementById("modeBadge").textContent = parts.length ? parts.join(" · ") : "Listo";
+}
+
+/* =========================================================
+   EVENTOS
+========================================================= */
+document.getElementById("start").onclick = () => {
+  if (!rec) return;
+  if (voiceActive) { voiceActive = false; rec.stop(); }
+  else { try { rec.start(); } catch(e){} }
+};
+
+document.getElementById("reset").onclick = resetCount;
+document.getElementById("camBtn").onclick = toggleCamera;
+document.getElementById("switchCamBtn").onclick = () => {
+  startCamera(currentFacingMode === "user" ? "environment" : "user");
+};
+document.getElementById("calibrateBtn").onclick = () => {
+  document.getElementById("camInfo").textContent =
+    "Tocá el centro del tornillo";
+  calibrated = false;
+  zoneX = zoneY = null;
+  resetRotationTracking();
+
+  if (camPreviewHidden) toggleCamPreview();
+};
+
+document.getElementById("plusBtn").onclick = () => incrementCount();
+document.getElementById("minusBtn").onclick = () => {
+  if (count > 0) {
+    count--;
+    document.getElementById("count").textContent = count;
+  }
+};
+
+document.getElementById("saveBtn").onclick = openHistoryModal;
+document.getElementById("closeModal").onclick = closeHistoryModal;
+document.getElementById("historyModal").onclick = (e) => {
+  if (e.target.id === "historyModal") closeHistoryModal();
+};
+
+// Botón guardar dentro del modal
+(function () {
+  const header = document.querySelector(".modal-header");
+  const btn = document.createElement("button");
+  btn.textContent = "Guardar";
+  btn.style.cssText = "border:none;border-radius:8px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer;background:var(--accent);color:var(--accent-text);margin-right:auto;";
+  btn.onclick = saveCurrentCount;
+  header.insertBefore(btn, header.children[1]);
+})();
+
+/* Temas */
+const THEMES = ["theme-green","theme-gray","theme-blue","theme-red"];
+let currentThemeIndex = 0;
+function applyTheme(t) {
+  document.body.classList.remove(...THEMES);
+  document.body.classList.add(t);
+  localStorage.setItem("bobinado_theme", t);
+}
+document.getElementById("themeBtn").onclick = () => {
+  currentThemeIndex = (currentThemeIndex + 1) % THEMES.length;
+  applyTheme(THEMES[currentThemeIndex]);
+};
+(function () {
+  const saved = localStorage.getItem("bobinado_theme");
+  if (saved && THEMES.includes(saved)) {
+    currentThemeIndex = THEMES.indexOf(saved);
+    applyTheme(saved);
+  } else applyTheme("theme-green");
+})();
+
+/* =========================================================
+   INICIO
+========================================================= */
+initVoice();
+setupCalibration();
+updateStatus();
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("./sw.js").catch(console.error);
+}
+</script>
+
+</body>
+</html>
